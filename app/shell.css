@@ -1,0 +1,926 @@
+/* App shell styles (.lv), extracted from the inline template literal in
+   Shell.tsx. Importing a real .css file lets Next.js parse it once at build
+   time instead of shipping a ~5KB string in the JS bundle and re-injecting it
+   through a <style> tag on every render. */
+
+.lv {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lv .content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 4px 64px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* First-paint placeholder while the session resolves. */
+.lv .loading {
+  margin-top: 16vh;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ---- Header ---- */
+
+.lv header {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.lv .brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lv .mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, var(--accent), var(--accent-strong));
+  color: var(--accent-contrast);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: var(--shadow-1);
+}
+
+.lv h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.lv header small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.lv header button {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+/* ---- Navigation ----
+   A flat tab bar: muted labels on a hairline, with the active tab marked by
+   red type and a 3px underline that sits on the divider. */
+
+.lv nav {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 2px;
+  margin-top: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lv nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 14px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.lv nav a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.lv nav a.on,
+.lv nav a[aria-current="page"] {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.lv nav a.on::after,
+.lv nav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+
+/* Idle: a solid red count pill. Active: a soft pill so it doesn't disappear
+   into the red underline. */
+.lv .badge {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv nav a.on .badge,
+.lv nav a[aria-current="page"] .badge {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* ---- Section headings ----
+   Sentence-case title followed by a hairline rule that fills the row. */
+
+.lv h2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 30px 0 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lv h2::after {
+  content: "";
+  flex: 1;
+  min-width: 24px;
+  height: 1px;
+  background: var(--border);
+}
+
+.lv .content > h2:first-child {
+  margin-top: 24px;
+}
+
+.lv h2.info {
+  color: var(--info);
+}
+
+/* ---- Shared bits ---- */
+
+.lv small {
+  color: var(--muted);
+}
+
+/* Empty states: a quiet dashed panel instead of a bare line of text. */
+.lv .empty {
+  display: block;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+/* Inline error messages. */
+.lv .alert {
+  margin: 14px 0;
+  padding: 10px 14px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--danger-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Informational banner (e.g. requests waiting for a decision). */
+.lv .notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--info-soft);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.lv .footnote {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+/* ---- Forms ---- */
+
+.lv form {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.lv form .full {
+  grid-column: 1 / -1;
+
+}
+
+.lv label,
+.lv .dp > span {
+  display: grid;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lv input,
+.lv select,
+.lv textarea {
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  letter-spacing: normal;
+  text-transform: none;
+  transition: border-color 120ms ease;
+}
+
+.lv textarea {
+  resize: vertical;
+}
+
+.lv input::placeholder,
+.lv textarea::placeholder {
+  color: var(--muted);
+  text-transform: none;
+}
+
+.lv input:read-only {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+/* ---- Buttons ---- */
+
+.lv button {
+  min-height: 40px;
+  padding: 9px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.lv button:hover {
+  background: var(--accent-strong);
+}
+
+.lv button.ghost {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+
+.lv button.ghost:hover {
+  background: var(--surface-3);
+  border-color: var(--text);
+}
+
+.lv button.ok {
+  background: var(--ok);
+  color: var(--ok-contrast);
+}
+
+.lv button.ok:hover {
+  filter: brightness(0.92);
+}
+
+.lv button:focus-visible,
+.lv input:focus-visible,
+.lv select:focus-visible,
+.lv textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-color: var(--focus);
+}
+
+.lv button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lv button:disabled:hover {
+  background: var(--accent);
+}
+
+.lv button.ghost:disabled:hover {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+/* ---- Lists ---- */
+
+.lv ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lv li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  transition: border-color 120ms ease;
+}
+
+.lv li:hover {
+  border-color: var(--border-strong);
+}
+
+/* Left-edge markers, kept as inset shadows so rows never shift size. */
+.lv li.accent {
+  box-shadow: var(--shadow-1), inset 3px 0 0 var(--accent);
+}
+
+.lv li.info {
+  background: var(--info-soft);
+  box-shadow: var(--shadow-1), inset 3px 0 0 var(--info);
+}
+
+.lv li strong {
+  font-weight: 600;
+}
+
+.lv .acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lv li .acts button {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+}
+
+.lv .tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.lv .PENDING {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.lv .APPROVED {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.lv .REJECTED {
+  background: var(--accent-soft);
+  color: var(--danger-text);
+}
+
+/* ---- Stats ---- */
+
+.lv .stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.lv .stat {
+  flex: 1 1 140px;
+  min-width: 140px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lv .stat b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.lv .stat.ok b {
+  color: var(--ok);
+}
+
+.lv .stat.no b {
+  color: var(--accent-text);
+}
+
+.lv .stat.warn b {
+  color: var(--warn);
+}
+
+.lv .stat.info {
+  background: var(--info-soft);
+  border-color: var(--info);
+}
+
+.lv .stat.info b {
+  color: var(--info);
+}
+
+/* ---- Table ---- */
+
+.lv .table-wrap {
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+}
+
+.lv table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  background: transparent;
+}
+
+.lv th,
+.lv td {
+  text-align: left;
+  padding: 10px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.lv tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.lv th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.lv .table-wrap th:first-child,
+.lv .table-wrap td:first-child {
+  padding-left: 16px;
+}
+
+.lv .table-wrap th:last-child,
+.lv .table-wrap td:last-child {
+  padding-right: 16px;
+}
+
+.lv tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.lv .info-text {
+  color: var(--info);
+}
+
+.lv .col-bar {
+  width: 25%;
+}
+
+.lv .bar {
+  height: 6px;
+  min-width: 80px;
+  background: var(--surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lv .bar i {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  transition: width 240ms ease;
+}
+
+/* ---- Members table ---- */
+
+.lv table.members {
+  min-width: 760px;
+}
+
+.lv .members td .derived {
+  font-weight: 700;
+}
+
+.lv .members td small {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.lv .members td input {
+  width: 84px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+}
+
+.lv .members .acts {
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.lv .members .acts button {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+/* ---- Request check panel ---- */
+
+.lv .chk {
+  margin-top: 4px;
+  padding: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+}
+
+.lv .chk h3 {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lv .chk .duty {
+  margin: 4px 0 14px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--info);
+}
+
+.lv .tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.lv .tile {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv .tile small {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lv .tile.mine {
+  border-color: var(--info);
+  box-shadow: inset 0 0 0 1px var(--info);
+}
+
+.lv .tile.warn {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.lv .tile.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.lv .verdict {
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.lv .verdict + .verdict {
+  margin-top: 8px;
+}
+
+.lv .verdict.ok {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.lv .verdict.warn {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.lv .verdict.no {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--danger-text);
+}
+
+.lv .verdict ul {
+  display: block;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.lv .verdict li {
+  display: list-item;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+/* ---- Pager ---- */
+
+.lv .pager {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.lv .pager button {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+/* ---- Date picker ---- */
+
+.lv .dp-slot {
+  max-width: 240px;
+  margin-bottom: 14px;
+}
+
+.lv .dp {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.lv .dp-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-weight: 400;
+  text-align: left;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color 120ms ease;
+}
+
+.lv .dp-btn:hover {
+  background: var(--surface-3);
+}
+
+.lv .dp-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  width: min(300px, 86vw);
+  margin-top: 6px;
+  padding: 14px;
+  font-weight: 400;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+
+.lv .dp-pop.right {
+  left: auto;
+  right: 0;
+}
+
+.lv .dp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.lv .dp-head button {
+  min-height: 32px;
+  padding: 3px 12px;
+}
+
+.lv .dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.lv .dp-grid span {
+  padding: 4px 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lv .dp-grid button {
+  min-height: 34px;
+  padding: 6px 0;
+  font-weight: 700;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.lv .dp-grid button:not(:disabled):hover {
+  background: var(--accent-soft);
+}
+
+.lv .dp-grid button:disabled {
+  opacity: 1;
+  color: var(--border-strong);
+  background: var(--surface-2);
+  font-weight: 400;
+  cursor: not-allowed;
+}
+
+.lv .dp-grid button.today {
+  border-color: var(--info);
+}
+
+.lv .dp-grid button.sel,
+.lv .dp-grid button.sel:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.lv .dp-grid button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 560px) {
+  .lv {
+    padding: 12px 12px 0;
+  }
+
+  .lv h1 {
+    font-size: 1.15rem;
+  }
+
+  .lv .mark {
+    width: 34px;
+    height: 34px;
+    font-size: 0.7rem;
+  }
+
+  .lv h2 {
+    margin: 24px 0 12px;
+    font-size: 0.95rem;
+  }
+
+  .lv form {
+    grid-template-columns: 1fr;
+  }
+
+  .lv .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lv nav {
+    gap: 0;
+    margin-top: 12px;
+  }
+
+  .lv nav a {
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 0.87rem;
+  }
+
+  .lv .stat {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    padding: 12px 14px;
+  }
+
+  .lv .stat b {
+    font-size: 1.6rem;
+  }
+
+  .lv li {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .lv .tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .lv .stat {
+    flex-basis: 100%;
+  }
+}
