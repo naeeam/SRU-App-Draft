@@ -13,6 +13,7 @@ import Shell, {
 import { MAX_LEAVE_PER_DUTY_DAY } from "../lib/config";
 import { dutyDaysBetween, formatDate } from "../lib/dates";
 import { getUrl } from "aws-amplify/storage"; // 👈 Import storage getUrl API
+import { pathToFileURL } from "url";
 
 type Status = "APPROVED" | "REJECTED" | "PENDING";
 
@@ -33,11 +34,16 @@ function ScreenshotLink({ path }: { path?: string | null }) {
     setLoading(true);
     try {
       const result = await getUrl({
-        path,
-        options: { bucket: "leaveWorkflowStorage", expiresIn: 300 }, // Link valid for 5 mins
+        path: path!,
+        options: {
+          expiresIn: 300,
+          bucket: "leaveWorkflowStorage",
+        },
       });
-      setUrl(result.url.toString());
-      window.open(result.url.toString(), "_blank");
+
+      const finalUrl = result.url.toString();
+      setUrl(finalUrl);
+      window.open(finalUrl, "_blank");
     } catch (err) {
       console.error("Failed to load screenshot url", err);
       alert("Could not load screenshot file.");
