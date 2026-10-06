@@ -204,7 +204,7 @@ function ApplyForm() {
 
 
     setBusy(false);
-    if (errors) setError(errors[0].message);
+    if (errors) setError(errors[0]);
     else router.push("/my-leave");
   }
 
