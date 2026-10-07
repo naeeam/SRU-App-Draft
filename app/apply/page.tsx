@@ -29,7 +29,7 @@ import {
   planDeduction,
   sumOf,
   type Balance,
-} from "../lib/balance";
+} from "../lib/Balance";
 import { balanceOf, saveBalance } from "../lib/Balanceactions";
 import { useMyMember } from "../lib/Usemymember";
 import SingleFileUploader from "../components/Fileuploader";
