@@ -1,6 +1,7 @@
 # Creates a Cognito account for everyone listed in tools\people.csv.
-# CSV columns: rank,name,email,phone,driver,appointment,al,oil,phol,total_leave_balance,total_duties,mc_count
+# CSV columns: rank,name,email,phone,driver,appointment,al,oil,phol,total_leave_balance,total_duties,mc_count,oic
 #   rank: LTA, WO2, SGT1, SGT2, CPL or LCP   driver: Yes or No   appointment: FF, SC, RC or DRC
+#   oic: Yes adds the OIC admin role, No removes it, blank leaves it as it is.
 #   al, oil, phol: numbers (blank = 0).   mc_count: a whole number (blank = 0). total_leave_balance and total_duties may be left blank:
 #   they are then worked out as AL + OIL + PHOL, and that total divided by 2.
 # Login ID is the email. Everyone gets the same temporary password below and
@@ -14,6 +15,7 @@
 param(
   [string]$PoolId,   # the live user pool ID. Leave out to use the sandbox from amplify_outputs.json
   [string]$Region,
+  [switch]$ResetBalances, # overwrite existing balances from the CSV on purpose
   [string]$MemberTable   # the Member table name. Leave out to create accounts only and skip the balances
 )
 
@@ -74,6 +76,7 @@ foreach ($p in (Import-Csv .\tools\people.csv)) {
   $al = Num $p.al; $oil = Num $p.oil; $phol = Num $p.phol
   $tlb = Num $p.total_leave_balance; $tduty = Num $p.total_duties
   $mc = Num $p.mc_count
+  $oicText = (Clean $p.oic).ToLower()
 
   # 8-digit Singapore numbers get +65 added automatically.
   if ($phone -match "^\d{8}$") { $phone = "+65$phone" }
@@ -98,6 +101,10 @@ foreach ($p in (Import-Csv .\tools\people.csv)) {
   if ($null -in @($al, $oil, $phol, $tlb, $tduty, $mc)) {
     Write-Host "SKIP $email - AL, OIL, PHOL and the totals must be numbers" -ForegroundColor Yellow
     $failed += "$email (bad number)"; continue
+  }
+  if ($oicText -notin "", "yes", "y", "no", "n") {
+    Write-Host "SKIP $email - oic must be Yes, No or blank" -ForegroundColor Yellow
+    $failed += "$email (bad oic value)"; continue
   }
   if ($mc -lt 0 -or $mc -ne [math]::Floor($mc)) {
     Write-Host "SKIP $email - mc_count must be a whole number" -ForegroundColor Yellow
@@ -139,6 +146,16 @@ foreach ($p in (Import-Csv .\tools\people.csv)) {
       --username $email --group-name DRIVER 2>&1 | Out-Null
   }
 
+  # OIC admin role: Yes adds it, No removes it, blank leaves it alone.
+  if ($oicText -in "yes", "y") {
+    aws cognito-idp admin-add-user-to-group --user-pool-id $pool --region $region `
+      --username $email --group-name OIC | Out-Null
+    if ($LASTEXITCODE -ne 0) { $failed += "$email (OIC group)"; continue }
+  } elseif ($oicText -in "no", "n") {
+    aws cognito-idp admin-remove-user-from-group --user-pool-id $pool --region $region `
+      --username $email --group-name OIC 2>&1 | Out-Null
+  }
+
   # Appointment: in the chosen APPT_ group, out of the other three (so re-running with a change works).
   $apptOk = $true
   foreach ($a in "FF", "SC", "RC", "DRC") {
@@ -155,20 +172,45 @@ foreach ($p in (Import-Csv .\tools\people.csv)) {
 
   # Balances: one row per person in the Member table, keyed by their email so a re-run updates it.
   if ($MemberTable) {
+    # The account's id (sub). It links the balance row to the person, so they can edit their own AL, OIL and PHOL.
+    $sub = (aws cognito-idp admin-get-user --user-pool-id $pool --region $region --username $email `
+      --query "UserAttributes[?Name=='sub'].Value | [0]" --output text 2>$null | Out-String).Trim()
+    if ($sub -eq "None") { $sub = "" }
     $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.000Z", [Globalization.CultureInfo]::InvariantCulture)
-    $item = @{
-  id = @{ S = $email }; __typename = @{ S = "Member" }; name = @{ S = $name }; email = @{ S = $email }
-  rank = @{ S = $rank }
-  mcCount = @{ N = (Fmt $mc) }; al = @{ N = (Fmt $al) }; oil = @{ N = (Fmt $oil) }; phol = @{ N = (Fmt $phol) }
-  totalLeaveBalance = @{ N = (Fmt $tlb) }; totalDuties = @{ N = (Fmt $tduty) }
-  createdAt = @{ S = $now }; updatedAt = @{ S = $now }
-} | ConvertTo-Json -Depth 5
+    $itemObj = @{
+      id = @{ S = $email }; __typename = @{ S = "Member" }; name = @{ S = $name }; email = @{ S = $email }; rank = @{ S = $rank }
+      mcCount = @{ N = (Fmt $mc) }; al = @{ N = (Fmt $al) }; oil = @{ N = (Fmt $oil) }; phol = @{ N = (Fmt $phol) }
+      totalLeaveBalance = @{ N = (Fmt $tlb) }; totalDuties = @{ N = (Fmt $tduty) }
+      createdAt = @{ S = $now }; updatedAt = @{ S = $now }
+    }
+    if ($sub) { $itemObj.userId = @{ S = $sub } }
+    $item = $itemObj | ConvertTo-Json -Depth 5
     $file = Join-Path $env:TEMP "member-item.json"
     [IO.File]::WriteAllText($file, $item, (New-Object Text.UTF8Encoding $false))
-    $out = aws dynamodb put-item --table-name $MemberTable --region $region --item "file://$file" 2>&1 | Out-String
+    # Only create the row if it is new. A row that exists already keeps its balances, because people edit
+    # them and leave deducts from them. Use -ResetBalances to overwrite balances from the CSV on purpose.
+    $putArgs = @()
+    if (-not $ResetBalances) { $putArgs = @("--condition-expression", "attribute_not_exists(id)") }
+    $out = aws dynamodb put-item --table-name $MemberTable --region $region --item "file://$file" @putArgs 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
-      Write-Host "FAILED balances for $email - $out" -ForegroundColor Red
-      $failed += "$email (balances)"; continue
+      if ($out -match "ConditionalCheckFailedException") {
+        Write-Host "  balance row already exists: updating name, rank and account link only (balances kept)"
+        $names = @{ "#n" = "name"; "#r" = "rank" }
+        $values = @{ ":n" = @{ S = $name }; ":r" = @{ S = $rank }; ":t" = @{ S = $now } }
+        $expr = "SET #n = :n, #r = :r, updatedAt = :t"
+        if ($sub) { $names["#u"] = "userId"; $values[":u"] = @{ S = $sub }; $expr += ", #u = :u" }
+        $utf8 = New-Object Text.UTF8Encoding $false
+        $kFile = Join-Path $env:TEMP "member-key.json"; $nFile = Join-Path $env:TEMP "member-names.json"; $vFile = Join-Path $env:TEMP "member-values.json"
+        [IO.File]::WriteAllText($kFile, (@{ id = @{ S = $email } } | ConvertTo-Json -Depth 5), $utf8)
+        [IO.File]::WriteAllText($nFile, ($names | ConvertTo-Json), $utf8)
+        [IO.File]::WriteAllText($vFile, ($values | ConvertTo-Json -Depth 5), $utf8)
+        $out = aws dynamodb update-item --table-name $MemberTable --region $region --key "file://$kFile" `
+          --update-expression $expr --expression-attribute-names "file://$nFile" --expression-attribute-values "file://$vFile" 2>&1 | Out-String
+      }
+      if ($LASTEXITCODE -ne 0) {
+        Write-Host "FAILED balances for $email - $out" -ForegroundColor Red
+        $failed += "$email (balances)"; continue
+      }
     }
   }
   $ok++

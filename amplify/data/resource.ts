@@ -31,6 +31,10 @@ const schema = a.schema({
       status: a.string(),
       reviewedBy: a.string(),
       reviewedAt: a.datetime(),
+      deductedOil: a.float(),
+      deductedAl: a.float(),
+      deductedPhol: a.float(),
+      balanceRefunded: a.boolean(),
     })
     .authorization((allow) => [
       // 1. Owner can create, read, update, and delete their own leave
@@ -52,10 +56,12 @@ const schema = a.schema({
       phol: a.float().default(0),
       totalLeaveBalance: a.float().default(0),
       totalDuties: a.float().default(0),
+      userId: a.string()
     })
     .authorization((allow) => [
       allow.groups(approvers).to(["create", "read", "update", "delete"]),
       allow.authenticated().to(["read"]),
+      allow.ownerDefinedIn("userId").identityClaim("sub").to(["update"]), // people can edit their own row
     ]),
 });
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Shell, { LeaveRow, Pager, client, useApp, usePaged, type Leave } from "../components/Shell";
 import { formatDate } from "../lib/dates";
+import { refundLeave, redeductLeave } from "../lib/Balanceactions";
 import { remove, uploadData } from "aws-amplify/storage";
 
 function MyLeave() {
@@ -25,6 +26,16 @@ function MyLeave() {
     try {
       const { errors } = await client.models.Leave.delete({ id: l.id });
       if (errors) throw new Error(errors[0].message);
+
+      // The request is gone, so give back the leave balance it took (OIL, AL, PHOL).
+      // This is separate from the delete: if it fails, the request stays cancelled and we only show a message.
+      try {
+        const refund = await refundLeave(l, { markLeave: false });
+        if (!refund.ok) setError(refund.message);
+      } catch (e) {
+        console.error("Leave balance not refunded:", e);
+        setError("Your request was cancelled, but the leave balance could not be refunded. Please check My info.");
+      }
 
       // Only remove the screenshot once the request is really gone.
       if (l.screenshotPath) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { ChangeEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { uploadData } from "aws-amplify/storage";
 import DutyDatePicker from "../components/Dutydatepicker";
@@ -21,13 +22,25 @@ import {
   nextDutyDay,
 } from "../lib/dates";
 
+import {
+  DEDUCTS_BALANCE,
+  LEAVE_DAYS_PER_DUTY,
+  afterDeduction,
+  planDeduction,
+  sumOf,
+  type Balance,
+} from "../lib/balance";
+import { balanceOf, saveBalance } from "../lib/Balanceactions";
+import { useMyMember } from "../lib/Usemymember";
 import SingleFileUploader from "../components/Fileuploader";
+// import "../apply.css";
 
 const fmt = formatDate;
 
 function ApplyForm() {
   const { email, name, role, isDriver, appointment, leaves, isMine } = useApp();
   const router = useRouter();
+  const { row: myRow } = useMyMember(); // undefined while loading, null if no balance record
   const today = new Date().toLocaleDateString("en-CA");
 
   // Shown as e.g. "SGT1 Ahmad Tan". Comes from the account, so it is not typed in.
@@ -40,14 +53,12 @@ function ApplyForm() {
   const [endTime, setEndTime] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false); // request saved, but the attachment failed
   const [attachedFile, setAttachedFile] = useState<File | null>(null); // State for the optional file
   const isTimeOff = leaveType === "TIME_OFF";
 
-
-
   // Duty runs 0900 to 0900, so time off can end on the duty date or the day after, no later.
   const latestTimeOffEnd = addDays(startDate, 1);
-
 
   const check = useMemo(() => {
     const problems: string[] = []; // hard rules: block submitting
@@ -127,16 +138,44 @@ function ApplyForm() {
       }
     }
 
+    // Leave balance: each duty off uses LEAVE_DAYS_PER_DUTY days, taken from OIL first, then AL, then PHOL.
+    const needed = DEDUCTS_BALANCE.includes(leaveType) ? days.length * LEAVE_DAYS_PER_DUTY : 0;
+    let plan: { take: Balance; shortfall: number } | null = null;
+    let balanceNote = "";
+    if (needed > 0) {
+      if (myRow === undefined) {
+        problems.push("Checking your leave balance…");
+      } else if (myRow === null) {
+        warnings.push("No leave balance was found for your account, so nothing will be deducted. Please ask your KAH.");
+      } else {
+        const bal = balanceOf(myRow);
+        const p = planDeduction(bal, needed);
+        plan = p;
+        if (p.shortfall > 0) {
+          problems.push(
+            `Not enough leave balance: this needs ${needed} days (${days.length} duty × ${LEAVE_DAYS_PER_DUTY}) but you only have ${sumOf(bal)}.`
+          );
+        } else {
+          const used = (["oil", "al", "phol"] as const)
+            .filter((k) => p.take[k] > 0)
+            .map((k) => `${k.toUpperCase()} ${p.take[k]}`)
+            .join(", ");
+          const left = afterDeduction(bal, p.take);
+          balanceNote = `This uses ${needed} days (${days.length} duty × ${LEAVE_DAYS_PER_DUTY}): ${used}. After: OIL ${left.oil} · AL ${left.al} · PHOL ${left.phol}.`;
+        }
+      }
+    }
+
     const from = isTimeOff && startTime ? startTime : DUTY_START_TIME;
     const to = isTimeOff && endTime ? endTime : DUTY_START_TIME;
     const dutyLine =
       days.length === 0
         ? "No duty days in this range"
         : days.slice(0, 3).map((d) => `${fmt(d)} · ${from} → ${to}`).join("  |  ") +
-        (days.length > 3 ? `  (+${days.length - 3} more)` : "");
+          (days.length > 3 ? `  (+${days.length - 3} more)` : "");
 
-    return { problems, warnings, available, away, drivers, vl, ovl, byAppt, dutyLine };
-  }, [leaves, isMine, isDriver, appointment, leaveType, startDate, endDate, startTime, endTime, isTimeOff, latestTimeOffEnd]);
+    return { problems, warnings, available, away, drivers, vl, ovl, byAppt, dutyLine, plan, balanceNote };
+  }, [leaves, isMine, isDriver, appointment, myRow, leaveType, startDate, endDate, startTime, endTime, isTimeOff, latestTimeOffEnd]);
 
   // Red = over the hard limit. Amber = over the guideline. Blue outline = applies to you.
   const tile = (label: string, value: number, max?: number, opts: { hard?: boolean; mine?: boolean } = {}) => {
@@ -153,65 +192,93 @@ function ApplyForm() {
 
   async function apply(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (blocked) return;
+    if (blocked || busy || done) return;
     setError("");
     setBusy(true);
 
-
     const reason = String(new FormData(e.currentTarget).get("reason") ?? "");
-    const { data: newLeave, errors } = await client.models.Leave.create({
-      applicantName,
-      leaveType: leaveType as Leave["leaveType"],
-      startDate,
-      endDate,
-      startTime: isTimeOff ? startTime : undefined,
-      endTime: isTimeOff ? endTime : undefined,
-      isDriver,
-      appointment: appointment || undefined,
-      reason,
-    });
-
-    if (errors || !newLeave) {
-      throw new Error(errors?.[0]?.message || "Failed to create leave request.");
-    }
-
-    // 2. If an optional file was attached, upload it to S3 storage
-      if (attachedFile) {
-        // Build clean file extension (e.g., .jpg, .png)
-        const fileExt = attachedFile.name.split(".").pop() || "jpg";
-        
-        // Format the date/dates part (e.g., "2026-10-06" or "2026-10-06_to_2026-10-08")
-        const datePart = startDate === endDate ? startDate : `${startDate}_to_${endDate}`;
-        
-        // Combine into: Rank_Name_Date(s).ext (replace spaces with underscores for safety)
-        const customFileName = `${applicantName}_${datePart}.${fileExt}`.replace(/\s+/g, "_");
-        const filePath = `screenshots/${newLeave.id}/${customFileName}`;
-
-        await uploadData({
-          path: filePath,
-          data: attachedFile,
-          options: {
-            bucket: "leaveWorkflowStorage",
-          },
-        }).result;
-
-        // 3. Update the DynamoDB record with the S3 file path reference
-        await client.models.Leave.update({
-          id: newLeave.id,
-          screenshotPath: filePath,
-        });
+    let before: Balance | null = null; // set once the balance has been taken, so it can be put back
+    let leaveSaved = false;
+    try {
+      // 1. Take the leave balance first. If the request then fails to save, it is put back.
+      if (check.plan && myRow) {
+        before = balanceOf(myRow);
+        const { errors: balanceErrors } = await saveBalance(myRow.id, afterDeduction(before, check.plan.take));
+        if (balanceErrors) {
+          before = null;
+          setError(`Could not update your leave balance: ${balanceErrors[0].message}`);
+          return;
+        }
       }
 
+      // 2. Save the leave request, with what was taken (so it can be refunded if it is cancelled or rejected)
+      const { data: newLeave, errors } = await client.models.Leave.create({
+        applicantName,
+        leaveType: leaveType as Leave["leaveType"],
+        startDate,
+        endDate,
+        startTime: isTimeOff ? startTime : undefined,
+        endTime: isTimeOff ? endTime : undefined,
+        isDriver,
+        appointment: appointment || undefined,
+        reason,
+        deductedOil: check.plan?.take.oil,
+        deductedAl: check.plan?.take.al,
+        deductedPhol: check.plan?.take.phol,
+      });
+      if (errors || !newLeave) {
+        if (before && myRow) await saveBalance(myRow.id, before); // undo the deduction
+        setError(errors?.[0]?.message || "Could not submit your request. Please try again.");
+        return;
+      }
+      leaveSaved = true;
 
-    setBusy(false);
-    if (errors) setError(errors[0]);
-    else router.push("/my-leave");
+      // 3. If a file was attached, upload it to S3 storage
+      if (attachedFile) {
+        try {
+          const fileExt = attachedFile.name.split(".").pop() || "jpg";
+          const datePart = startDate === endDate ? startDate : `${startDate}_to_${endDate}`;
+          // Rank_Name_Date(s).ext, with spaces replaced by underscores
+          const customFileName = `${applicantName}_${datePart}.${fileExt}`.replace(/\s+/g, "_");
+          const filePath = `screenshots/${newLeave.id}/${customFileName}`;
+
+          await uploadData({
+            path: filePath,
+            data: attachedFile,
+            options: { bucket: "leaveWorkflowStorage" },
+          }).result;
+
+          // 4. Save the file path on the leave record
+          await client.models.Leave.update({ id: newLeave.id, screenshotPath: filePath });
+        } catch (err) {
+          console.error("Attachment upload failed:", err);
+          // The request itself is saved, so stop here and do not allow a second submit.
+          setDone(true);
+          setError("Your request was submitted, but the attachment could not be uploaded.");
+          return;
+        }
+      }
+
+      router.push("/my-leave");
+    } catch (err) {
+      console.error("Submit failed:", err);
+      if (before && myRow && !leaveSaved) {
+        try {
+          await saveBalance(myRow.id, before); // undo the deduction
+        } catch (undoErr) {
+          console.error("Could not put the leave balance back:", undoErr);
+        }
+      }
+      setError("Something went wrong while submitting. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <>
       <h2>Apply for leave</h2>
-      <form onSubmit={apply}>
+      <form className="apply-form" onSubmit={apply} autoComplete="off">
         <label className="full">
           Name
           <input name="name" value={applicantName} readOnly />
@@ -269,8 +336,12 @@ function ApplyForm() {
           Remarks (optional)
           <textarea name="reason" rows={3} />
         </label>
-        {/* Modular File Uploader Component */}
-        <SingleFileUploader onFileSelect={(file) => setAttachedFile(file)} />
+
+        {/* Modular file uploader. The wrapper makes it span the full width of the form. */}
+        <div className="full">
+          <SingleFileUploader onFileSelect={(file) => setAttachedFile(file)} />
+        </div>
+
         <div className="full chk" aria-live="polite">
           <h3>Request check</h3>
           <small>Duty affected:</small>
@@ -290,6 +361,11 @@ function ApplyForm() {
               tile(code, check.byAppt[code] ?? 0, limit, { mine: appointment === code })
             )}
           </div>
+          {check.balanceNote && (
+            <p>
+              <small>{check.balanceNote}</small>
+            </p>
+          )}
           {blocked && (
             <div className="verdict no" role="alert">
               <strong>Can&apos;t submit yet</strong>
@@ -323,22 +399,30 @@ function ApplyForm() {
           )}
         </div>
 
-        <div className="full">
-          <button type="submit" disabled={busy || blocked}>
-            {busy ? "Submitting…" : "Submit request"}
-          </button>
+        <div className="full actions">
           {error && (
             <p role="alert" className="alert">
               {error}
             </p>
           )}
+          {done && (
+            <p>
+              <Link href="/my-leave">Go to My leave</Link>
+            </p>
+          )}
+          {blocked && (
+            <p>
+              <small>Can&apos;t submit yet. See the Request check above.</small>
+            </p>
+          )}
+          <button type="submit" disabled={busy || blocked || done}>
+            {busy ? "Submitting…" : "Submit request"}
+          </button>
         </div>
       </form>
     </>
   );
 }
-
-
 
 export default function Page() {
   return (
@@ -347,4 +431,3 @@ export default function Page() {
     </Shell>
   );
 }
-
