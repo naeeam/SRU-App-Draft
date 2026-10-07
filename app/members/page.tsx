@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchUserAttributes } from "aws-amplify/auth";
 import Shell, { useApp } from "../components/Shell";
-import { totalsOf, type Balance } from "../lib/balance";
+import { totalsOf, type Balance } from "../lib/Balance";
 import { balanceOf, saveBalance } from "../lib/Balanceactions";
 import { useMyMember } from "../lib/Usemymember";
 

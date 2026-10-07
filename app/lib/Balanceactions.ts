@@ -1,6 +1,6 @@
 // Saving leave balances. Uses the signed-in person's access, so see the Member rules in the schema.
 import { client, type Leave, type Member } from "../components/Shell";
-import { afterDeduction, afterRefund, planDeduction, sumOf, totalsOf, type Balance } from "./balance";
+import { afterDeduction, afterRefund, planDeduction, sumOf, totalsOf, type Balance } from "./Balance.ts";
 
 export type Result = { ok: boolean; message: string };
 const OK: Result = { ok: true, message: "" };
