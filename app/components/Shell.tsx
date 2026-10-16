@@ -40,6 +40,7 @@ export const peopleOn = (leaves: Leave[], date: string, statuses: string[]) => {
 type App = {
   email: string;
   name: string;
+  rank: string;
   isDriver: boolean;
   isOIC: boolean;
   appointment: string;
@@ -146,6 +147,7 @@ function Frame({
   const [me, setMe] = useState<{
     email: string;
     name: string;
+    rank: string,
     isDriver: boolean;
     isOIC: boolean;
     appointment: string;
@@ -168,6 +170,7 @@ function Frame({
       setMe({
         email: attrs.email ?? "",
         name: attrs.name ?? "",
+        rank: RANKS.find((r) => groups.includes(r)) ?? "",
         isDriver: groups.includes("DRIVER"),
         isOIC: groups.includes("OIC"),
         appointment: APPOINTMENTS.find((a) => groups.includes(`APPT_${a}`)) ?? "",
@@ -187,7 +190,19 @@ function Frame({
       </div>
     );
 
-  const isMine = (l: Leave) => !!l.owner && l.owner.startsWith(me.userId);
+  const isMine = (l: Leave) => {
+    const loggedInName = `${me.rank} ${me.name}`
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+
+    const applicantName = l.applicantName
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+    console.log("rank: " + me.rank)
+    return !!loggedInName && applicantName === loggedInName;
+  };
   const pendingCount = me.isApprover
     ? leaves.filter((l) => l.status === "PENDING").length
     : 0;
@@ -203,6 +218,7 @@ function Frame({
       value={{
         email: me.email,
         name: me.name,
+        rank: me.rank,
         isDriver: me.isDriver,
         isOIC: me.isOIC,
         appointment: me.appointment,

@@ -10,12 +10,16 @@ import { remove, uploadData } from "aws-amplify/storage";
 
 function MyLeave() {
   const { leaves, isMine } = useApp();
+  // const { leaves, name } = useApp();
   const router = useRouter();
   const [error, setError] = useState("");
   const [cancelled, setCancelled] = useState<string[]>([]); // hidden right away
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  const mine = leaves.filter((l) => isMine(l) && !cancelled.includes(l.id));
+
+  const mine = leaves.filter(
+    (l) => isMine(l)
+  );
   const paged = usePaged(mine);
 
   async function cancel(l: Leave) {

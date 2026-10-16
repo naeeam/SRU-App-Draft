@@ -1,0 +1,5 @@
+email,leave_type,start_date,end_date,start_time,end_time,status,reason
+verontbx@gmail.com,Vacation,07/10/2026,10/10/2026,,,APPROVED,Family trip
+lee.wei@example.com,Sick,04/10/2026,04/10/2026,,,APPROVED,
+raj.kumar@example.com,Time off,13/10/2026,14/10/2026,23:50,00:30,APPROVED,Appointment
+sam.lim@example.com,Overseas vacation,16/10/2026,22/10/2026,,,PENDING,

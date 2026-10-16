@@ -20,7 +20,7 @@ param(
 )
 
 # Min 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.
-$tempPassword = "Fire@Temp2026"
+$tempPassword = "R3E@Temp2026"
 
 if ($PoolId -and $Region) {
   $pool   = $PoolId
