@@ -4,6 +4,7 @@ import { managePersonnel } from "../functions/manage-personnel/resource";
 import { cancelLeave } from "../functions/cancel-leave/resource";
 import { reviewLeave } from "../functions/review-leave/resource";
 import { attachScreenshot } from "../functions/attach-screenshot/resource";
+import { updatePersonnelGroups } from "../functions/update-personnel-groups/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -78,6 +79,20 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       // Personnel changes are KAH-only. Do not grant owners blanket update access.
     ]),
+  updatePersonnelGroups: a
+    .mutation()
+    .arguments({
+      memberId: a.id().required(),
+      rank: a.string().required(),
+      driver: a.boolean().required(),
+      appointment: a.string().required(),
+    })
+    .returns(a.ref("UpdatePersonnelGroupsResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(updatePersonnelGroups)),
+
+  UpdatePersonnelGroupsResult: a.customType({ message: a.string().required() }),
+
   attachLeaveScreenshot: a
     .mutation()
     .arguments({ leaveId: a.id().required(), path: a.string().required() })
