@@ -49,6 +49,13 @@ const schema = a.schema({
       allow.groups(approvers).to(["read", "update", "delete"]),
     ]),
 
+  RotaSettings: a
+    .model({ strength: a.integer().required() })
+    .authorization((allow) => [
+      allow.authenticated().to(["read"]),
+      allow.groups(approvers).to(["create", "read", "update"]),
+    ]),
+
   Member: a
     .model({
       name: a.string().required(),
