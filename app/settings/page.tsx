@@ -173,19 +173,18 @@ function SettingsContent() {
     if (!selected) return;
     setBusy(true); setMessage("");
     const al = Number(form.al), oil = Number(form.oil), phol = Number(form.phol);
-    if ([al, oil, phol].some(n => !Number.isFinite(n) || n < 0)) {
+    if ([al, oil, phol].some(n => !Number.isFinite(n) || n < 0) || !Number.isInteger(Number(form.mc_count)) || Number(form.mc_count) < 0 || !form.name.trim()) {
       setBusy(false); setMessage("Invalid balances."); return;
     }
     try {
       const { errors } = await client.models.Member.update({
-        id: selected.id, name: form.name.trim(), rank: form.rank,
-        phone: form.phone, driver: form.driver === "yes",
-        appointment: form.appointment || null, al, oil, phol,
+        id: selected.id, name: form.name.trim(),
+        phone: form.phone, al, oil, phol,
         totalLeaveBalance: al + oil + phol, totalDuties: (al + oil + phol) / 2,
         mcCount: Number(form.mc_count),
       });
       if (errors?.length) throw new Error(errors[0].message);
-      setMessage("Member record updated. Cognito group changes are not yet synchronized.");
+      setMessage("Member record updated. Rank, driver and appointment groups are managed in Cognito.");
     } catch (e) { setMessage(String(e)); }
     finally { setBusy(false); }
   }
@@ -278,7 +277,7 @@ function SettingsContent() {
           {members.map(m => <option key={m.id} value={m.id}>{m.rank} {m.name} ({m.email})</option>)}
         </select>
         {selected && <>
-          <p>Editing {selected.name}. Email and Cognito groups are not changed here.</p>
+          <p>Editing {selected.name}. Email, rank, driver and appointment groups are not changed here.</p>
           {(["name", "phone", "al", "oil", "phol", "mc_count"] as const).map(field => (
             <label key={field}>{field}
               <input value={form[field]} onChange={e => setForm(v => ({ ...v, [field]: e.target.value }))} />
