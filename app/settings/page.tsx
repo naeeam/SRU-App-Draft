@@ -170,6 +170,22 @@ function SettingsContent() {
     setMessage("Import finished. Save the credentials securely now. Failed rows can be corrected and retried individually.");
   }
 
+  async function updateGroups() {
+    if (!selected) return;
+    setBusy(true); setMessage("");
+    try {
+      const { data, errors } = await client.mutations.updatePersonnelGroups({
+        memberId: selected.id,
+        rank: form.rank,
+        driver: form.driver === "yes",
+        appointment: form.appointment,
+      });
+      if (errors?.length || !data) throw new Error(errors?.[0]?.message ?? "Group update failed.");
+      setMessage("Personnel rank, driver and appointment groups updated.");
+    } catch (e) { setMessage(String(e)); }
+    finally { setBusy(false); }
+  }
+
   async function updateMember() {
     if (!selected) return;
     setBusy(true); setMessage("");
@@ -278,13 +294,18 @@ function SettingsContent() {
           {members.map(m => <option key={m.id} value={m.id}>{m.rank} {m.name} ({m.email})</option>)}
         </select>
         {selected && <>
-          <p>Editing {selected.name}. Email, rank, driver and appointment groups are not changed here.</p>
+          <p>Editing {selected.name}. Email changes are not supported. Rank, driver and appointment are synchronized separately with Cognito.</p>
           {(["name", "phone", "al", "oil", "phol", "mc_count"] as const).map(field => (
             <label key={field}>{field}
               <input value={form[field]} onChange={e => setForm(v => ({ ...v, [field]: e.target.value }))} />
             </label>
           ))}
           <button type="button" disabled={busy} onClick={updateMember}>Save member changes</button>
+          <h4>Account roles</h4>
+          <label>Rank <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>{RANKS.map(r => <option key={r}>{r}</option>)}</select></label>
+          <label>Driver <select value={form.driver} onChange={e => setForm(v => ({ ...v, driver: e.target.value }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
+          <label>Appointment <select value={form.appointment} onChange={e => setForm(v => ({ ...v, appointment: e.target.value }))}>{APPOINTMENTS.map(a => <option key={a} value={a}>{a || "None"}</option>)}</select></label>
+          <button type="button" disabled={busy} onClick={updateGroups}>Save Cognito roles</button>
         </>}
       </section>
     </>
