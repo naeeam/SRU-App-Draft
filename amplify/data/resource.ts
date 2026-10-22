@@ -66,7 +66,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(approvers).to(["create", "read", "update", "delete"]),
       allow.authenticated().to(["read"]),
-      allow.ownerDefinedIn("userId").identityClaim("sub").to(["update"]), // people can edit their own row
+      // Personnel changes are KAH-only. Do not grant owners blanket update access.
     ]),
   createPersonnelAccount: a
     .mutation()
