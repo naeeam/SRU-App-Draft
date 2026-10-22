@@ -156,7 +156,8 @@ function SettingsContent() {
     }
     setBusy(true); setMessage(""); setCredentials([]);
     const reports: string[] = [], secrets: { email: string; temporaryPassword: string }[] = [];
-    for (const [i, row] of rows.entries()) {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
       try {
         secrets.push(await createAccount(row));
         reports.push(`Row ${i + 2}: created ${row.email}`);
