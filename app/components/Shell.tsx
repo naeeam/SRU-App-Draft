@@ -121,6 +121,9 @@ export function LeaveRow({ l, children }: { l: Leave; children?: React.ReactNode
           {formatDateTime(l.startDate, l.startTime)} to {formatDateTime(l.endDate, l.endTime)}
         </div>
         {l.reason && <small>{l.reason}</small>}
+        {(l.deductedOil ?? 0) > 0 && (
+          <div><small>OIL expiry: {l.oilExpiryDate ?? "No expiry"}</small></div>
+        )}
         {l.reviewedBy && (
           <div>
             <small>Reviewed by {l.reviewedBy}</small>
