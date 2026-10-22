@@ -9,6 +9,7 @@ import { storage } from "./storage/resource";
 import { submitLeaveForMember } from "./functions/submit-leave-for-member/resource";
 import { managePersonnel } from "./functions/manage-personnel/resource";
 import { cancelLeave } from "./functions/cancel-leave/resource";
+import { reviewLeave } from "./functions/review-leave/resource";
 
 const backend = defineBackend({
   auth,
@@ -17,6 +18,7 @@ const backend = defineBackend({
   submitLeaveForMember,
   managePersonnel,
   cancelLeave,
+  reviewLeave,
 });
 
 // DynamoDB tables
@@ -102,6 +104,19 @@ cancelFn.addToRolePolicy(new PolicyStatement({
   resources: [leaveTable.tableArn, memberTable.tableArn],
 }));
 cancelCfn.addPropertyOverride("Environment.Variables", {
+  LEAVE_TABLE_NAME: leaveTable.tableName,
+  MEMBER_TABLE_NAME: memberTable.tableName,
+});
+
+const reviewFn = backend.reviewLeave.resources.lambda;
+const reviewCfn = backend.reviewLeave.resources.cfnResources.cfnFunction;
+leaveTable.grantReadWriteData(reviewFn);
+memberTable.grantReadWriteData(reviewFn);
+reviewFn.addToRolePolicy(new PolicyStatement({
+  actions: ["dynamodb:TransactWriteItems"],
+  resources: [leaveTable.tableArn, memberTable.tableArn],
+}));
+reviewCfn.addPropertyOverride("Environment.Variables", {
   LEAVE_TABLE_NAME: leaveTable.tableName,
   MEMBER_TABLE_NAME: memberTable.tableName,
 });
