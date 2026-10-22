@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { submitLeaveForMember } from "../functions/submit-leave-for-member/resource";
+import { managePersonnel } from "../functions/manage-personnel/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -51,6 +52,9 @@ const schema = a.schema({
       name: a.string().required(),
       email: a.string().required(),
       rank: a.string(),
+      phone: a.string(),
+      driver: a.boolean(),
+      appointment: a.string(),
       mcCount: a.integer().default(0),
       al: a.float().default(0),
       oil: a.float().default(0),
@@ -64,6 +68,32 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       allow.ownerDefinedIn("userId").identityClaim("sub").to(["update"]), // people can edit their own row
     ]),
+  createPersonnelAccount: a
+    .mutation()
+    .arguments({
+      rank: a.string().required(),
+      name: a.string().required(),
+      email: a.string().required(),
+      phone: a.string().required(),
+      driver: a.string().required(),
+      appointment: a.string().required(),
+      al: a.string().required(),
+      oil: a.string().required(),
+      phol: a.string().required(),
+      total_leave_balance: a.string().required(),
+      total_duties: a.string().required(),
+      mc_count: a.string().required(),
+    })
+    .returns(a.ref("PersonnelAccountResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(managePersonnel)),
+
+  PersonnelAccountResult: a.customType({
+    memberId: a.id().required(),
+    email: a.string().required(),
+    temporaryPassword: a.string().required(),
+  }),
+
   submitLeaveForMember: a
     .mutation()
     .arguments({

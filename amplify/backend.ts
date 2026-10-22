@@ -7,12 +7,14 @@ import { data } from "./data/resource.js";
 import { storage } from "./storage/resource";
 
 import { submitLeaveForMember } from "./functions/submit-leave-for-member/resource";
+import { managePersonnel } from "./functions/manage-personnel/resource";
 
 const backend = defineBackend({
   auth,
   data,
   storage,
   submitLeaveForMember,
+  managePersonnel,
 });
 
 // DynamoDB tables
@@ -69,3 +71,22 @@ cfnFunction.addPropertyOverride(
       backend.auth.resources.userPool.userPoolId,
   }
 );
+
+// KAH personnel account creation (separate from delegated leave submission).
+const personnelFn = backend.managePersonnel.resources.lambda;
+const personnelCfn = backend.managePersonnel.resources.cfnResources.cfnFunction;
+memberTable.grantReadWriteData(personnelFn);
+personnelFn.addToRolePolicy(
+  new PolicyStatement({
+    actions: [
+      "cognito-idp:AdminCreateUser",
+      "cognito-idp:AdminAddUserToGroup",
+      "cognito-idp:AdminDeleteUser",
+    ],
+    resources: [backend.auth.resources.userPool.userPoolArn],
+  })
+);
+personnelCfn.addPropertyOverride("Environment.Variables", {
+  MEMBER_TABLE_NAME: memberTable.tableName,
+  USER_POOL_ID: backend.auth.resources.userPool.userPoolId,
+});
