@@ -46,10 +46,10 @@ export function allocateOil(
   const allocations: OilAllocation[] = [];
   for (const credit of [...credits].sort((a, b) =>
     a.expiryDate.localeCompare(b.expiryDate) || a.id.localeCompare(b.id))) {
-    if (credit.expiryDate < applicationDate || credit.remaining <= 0) continue;
-    if (!Number.isFinite(credit.remaining) || credit.remaining < 0) {
-      throw new Error("Invalid OIL credit balance.");
+    if (!isValidDate(credit.expiryDate) || !Number.isFinite(credit.remaining) || credit.remaining < 0 || !Number.isFinite(credit.amount) || credit.amount < 0 || credit.remaining > credit.amount) {
+      throw new Error("Invalid OIL credit.");
     }
+    if (credit.expiryDate < applicationDate || credit.remaining === 0) continue;
     const used = round(Math.min(remaining, credit.remaining));
     if (used > 0) {
       allocations.push({ creditId: credit.id, amount: used, expiryDate: credit.expiryDate });
@@ -66,4 +66,29 @@ export function refundableOil(
 ): OilAllocation[] {
   if (!isValidDate(refundDate)) throw new Error("Invalid refund date.");
   return allocations.filter(a => a.expiryDate >= refundDate);
+}
+
+/**
+ * Compute the spendable OIL balance from tracked credits and any legacy
+ * untracked balance. Keep the two sources separate until migration.
+ */
+export function effectiveOilBalance(
+  legacyOil: number,
+  credits: OilCredit[],
+  applicationDate: string,
+): number {
+  if (!Number.isFinite(legacyOil) || legacyOil < 0) {
+    throw new Error("Invalid legacy OIL balance.");
+  }
+  return round(legacyOil + availableOil(credits, applicationDate));
+}
+
+/**
+ * Determine whether an award has expired; it remains valid on the expiry day.
+ */
+export function isOilExpired(expiryDate: string, today: string): boolean {
+  if (!isValidDate(expiryDate) || !isValidDate(today)) {
+    throw new Error("Invalid OIL expiry comparison.");
+  }
+  return expiryDate < today;
 }
