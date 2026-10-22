@@ -66,9 +66,9 @@ function MyLeave() {
       }).result;
 
       // 2. Update DynamoDB record with the screenshot path
-      const { errors } = await client.models.Leave.update({
-        id: l.id,
-        screenshotPath: filePath,
+      const { errors } = await client.mutations.attachLeaveScreenshot({
+        leaveId: l.id,
+        path: filePath,
       });
 
       if (errors) throw new Error(errors[0].message);
