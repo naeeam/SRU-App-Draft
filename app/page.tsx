@@ -12,9 +12,24 @@ import {
 } from "./lib/config";
 import { addDays, formatDate, formatDateTime, nextDutyDay } from "./lib/dates";
 
+// Compare approved time-off periods in Singapore local time (UTC+08:00).
+// The selected duty day controls which entries appear; only elapsed periods turn green.
+function timeOffCompleted(endDate: string, endTime: string | null | undefined, now: number): boolean {
+  if (!endTime || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(endTime)) return false;
+  const end = Date.parse(`${endDate}T${endTime}:00+08:00`);
+  return Number.isFinite(end) && now >= end;
+}
+
 function Dashboard() {
   const { isApprover, leaves } = useApp();
   const [rotaStrength, setRotaStrength] = useState(ROTA_STRENGTH);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const refresh = () => setNow(Date.now());
+    refresh();
+    const timer = window.setInterval(refresh, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     const subscription = client.models.RotaSettings.observeQuery({ filter: { id: { eq: "main" } } }).subscribe({
       next: ({ items }) => {
@@ -87,16 +102,18 @@ function Dashboard() {
         <p className="empty">No one has time off.</p>
       ) : (
         <ul>
-          {timeOff.map((l) => (
-            <li key={l.id} className="info">
+          {timeOff.map((l) => {
+            const completed = now !== null && timeOffCompleted(l.endDate, l.endTime, now);
+            return <li key={l.id} className={completed ? "time-off-completed" : "info"}>
               <div>
                 <strong>{l.applicantName}</strong>
+                <small className="time-off-status">{completed ? "Time off completed" : "Time off scheduled / active"}</small>
               </div>
               <small>
                 {formatDateTime(l.startDate, l.startTime)} to {formatDateTime(l.endDate, l.endTime)}
               </small>
-            </li>
-          ))}
+            </li>;
+          })}
         </ul>
       )}
 
