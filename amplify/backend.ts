@@ -11,6 +11,7 @@ import { managePersonnel } from "./functions/manage-personnel/resource";
 import { cancelLeave } from "./functions/cancel-leave/resource";
 import { reviewLeave } from "./functions/review-leave/resource";
 import { attachScreenshot } from "./functions/attach-screenshot/resource";
+import { updatePersonnelGroups } from "./functions/update-personnel-groups/resource";
 
 const backend = defineBackend({
   auth,
@@ -21,6 +22,7 @@ const backend = defineBackend({
   cancelLeave,
   reviewLeave,
   attachScreenshot,
+  updatePersonnelGroups,
 });
 
 // DynamoDB tables
@@ -128,4 +130,21 @@ const screenshotCfn = backend.attachScreenshot.resources.cfnResources.cfnFunctio
 leaveTable.grantReadWriteData(screenshotFn);
 screenshotCfn.addPropertyOverride("Environment.Variables", {
   LEAVE_TABLE_NAME: leaveTable.tableName,
+});
+
+const groupsFn = backend.updatePersonnelGroups.resources.lambda;
+const groupsCfn = backend.updatePersonnelGroups.resources.cfnResources.cfnFunction;
+memberTable.grantReadWriteData(groupsFn);
+groupsFn.addToRolePolicy(new PolicyStatement({
+  actions: [
+    "cognito-idp:AdminGetUser",
+    "cognito-idp:AdminListGroupsForUser",
+    "cognito-idp:AdminAddUserToGroup",
+    "cognito-idp:AdminRemoveUserFromGroup",
+  ],
+  resources: [backend.auth.resources.userPool.userPoolArn],
+}));
+groupsCfn.addPropertyOverride("Environment.Variables", {
+  MEMBER_TABLE_NAME: memberTable.tableName,
+  USER_POOL_ID: backend.auth.resources.userPool.userPoolId,
 });
