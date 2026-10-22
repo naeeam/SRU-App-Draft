@@ -42,7 +42,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       // 1. Owner can create, read, update, and delete their own leave
-      allow.owner().to(["create", "read", "update", "delete"]),
+      allow.owner().to(["read"]),
       // 2. Everyone logged in can read
       allow.authenticated().to(["read"]),
       // 3. Approvers can read and update (for approving/rejecting)
