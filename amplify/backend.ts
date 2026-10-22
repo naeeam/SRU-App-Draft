@@ -8,6 +8,7 @@ import { storage } from "./storage/resource";
 
 import { submitLeaveForMember } from "./functions/submit-leave-for-member/resource";
 import { managePersonnel } from "./functions/manage-personnel/resource";
+import { cancelLeave } from "./functions/cancel-leave/resource";
 
 const backend = defineBackend({
   auth,
@@ -15,6 +16,7 @@ const backend = defineBackend({
   storage,
   submitLeaveForMember,
   managePersonnel,
+  cancelLeave,
 });
 
 // DynamoDB tables
@@ -89,4 +91,17 @@ personnelFn.addToRolePolicy(
 personnelCfn.addPropertyOverride("Environment.Variables", {
   MEMBER_TABLE_NAME: memberTable.tableName,
   USER_POOL_ID: backend.auth.resources.userPool.userPoolId,
+});
+
+const cancelFn = backend.cancelLeave.resources.lambda;
+const cancelCfn = backend.cancelLeave.resources.cfnResources.cfnFunction;
+leaveTable.grantReadWriteData(cancelFn);
+memberTable.grantReadWriteData(cancelFn);
+cancelFn.addToRolePolicy(new PolicyStatement({
+  actions: ["dynamodb:TransactWriteItems"],
+  resources: [leaveTable.tableArn, memberTable.tableArn],
+}));
+cancelCfn.addPropertyOverride("Environment.Variables", {
+  LEAVE_TABLE_NAME: leaveTable.tableName,
+  MEMBER_TABLE_NAME: memberTable.tableName,
 });
