@@ -3,6 +3,7 @@ import { submitLeaveForMember } from "../functions/submit-leave-for-member/resou
 import { managePersonnel } from "../functions/manage-personnel/resource";
 import { cancelLeave } from "../functions/cancel-leave/resource";
 import { reviewLeave } from "../functions/review-leave/resource";
+import { attachScreenshot } from "../functions/attach-screenshot/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -77,6 +78,15 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       // Personnel changes are KAH-only. Do not grant owners blanket update access.
     ]),
+  attachLeaveScreenshot: a
+    .mutation()
+    .arguments({ leaveId: a.id().required(), path: a.string().required() })
+    .returns(a.ref("AttachScreenshotResult"))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(attachScreenshot)),
+
+  AttachScreenshotResult: a.customType({ message: a.string().required() }),
+
   reviewLeave: a
     .mutation()
     .arguments({ leaveId: a.id().required(), status: a.string().required() })
