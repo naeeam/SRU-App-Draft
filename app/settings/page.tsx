@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Shell, { client, useApp, type Member } from "../components/Shell";
 import "./settings.css";
+import { isValidDate, singaporeDate } from "../lib/OilExpiry";
 
 const FIELDS = [
   "rank", "name", "email", "phone", "driver", "appointment",
@@ -66,6 +67,9 @@ function SettingsContent() {
   const [form, setForm] = useState<Form>({ ...empty });
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [awardMemberId, setAwardMemberId] = useState("");
+  const [awardAmount, setAwardAmount] = useState("");
+  const [awardExpiry, setAwardExpiry] = useState("");
   const [csv, setCsv] = useState("");
   const [rows, setRows] = useState<Form[]>([]);
   const [results, setResults] = useState<string[]>([]);
@@ -169,6 +173,39 @@ function SettingsContent() {
     }
     setBusy(false);
     setMessage("Import finished. Save the credentials securely now. Failed rows can be corrected and retried individually.");
+  }
+
+  async function awardOil() {
+    const amount = Number(awardAmount);
+    if (!awardMemberId || !members.some(m => m.id === awardMemberId)) {
+      setMessage("Select a personnel member to receive OIL."); return;
+    }
+    if (!awardAmount.trim() || !Number.isFinite(amount) || amount <= 0 ||
+        Math.round(amount * 100) !== amount * 100) {
+      setMessage("Enter a positive OIL amount (up to two decimal places)."); return;
+    }
+    if (!isValidDate(awardExpiry) || awardExpiry < singaporeDate()) {
+      setMessage("Enter a valid expiry date that has not passed (Singapore time)."); return;
+    }
+    setBusy(true); setMessage("");
+    try {
+      const { errors } = await client.models.OilCredit.create({
+        memberId: awardMemberId,
+        amount,
+        remaining: amount,
+        expiryDate: awardExpiry,
+        awardedAt: new Date().toISOString(),
+        awardedBy: "KAH",
+      });
+      if (errors?.length) throw new Error(errors[0].message);
+      setAwardAmount("");
+      setAwardExpiry("");
+      setMessage("OIL award recorded. The member can view its expiry date in My Info.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not record OIL award.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function updateGroups() {
@@ -279,7 +316,33 @@ function SettingsContent() {
         </section>
       )}
       <section className="settings-card">
-        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">04</span><div><h3>Edit personnel record</h3><p>Update personnel details and manage Cognito account roles.</p></div></div>
+        <div className="settings-card-heading">
+          <span className="settings-card-icon" aria-hidden="true">04</span>
+          <div><h3>Award new OIL</h3><p>Record a separate OIL award and its expiry date for a member.</p></div>
+        </div>
+        <div className="settings-form-grid">
+          <label>Personnel member
+            <select value={awardMemberId} onChange={e => setAwardMemberId(e.target.value)}>
+              <option value="">Select a member</option>
+              {members.map(m => <option key={m.id} value={m.id}>{m.rank} {m.name} ({m.email})</option>)}
+            </select>
+          </label>
+          <label>OIL amount
+            <input type="number" min="0.01" step="0.01" value={awardAmount}
+              onChange={e => setAwardAmount(e.target.value)} placeholder="e.g. 1.5" />
+          </label>
+          <label>Expiry date
+            <input type="date" min={singaporeDate()} value={awardExpiry}
+              onChange={e => setAwardExpiry(e.target.value)} />
+          </label>
+        </div>
+        <p><small>Each award is stored individually. The existing Member OIL total is not modified until the balance-ledger integration is completed.</small></p>
+        <div className="settings-actions">
+          <button type="button" disabled={busy} onClick={awardOil}>Submit OIL award</button>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">05</span><div><h3>Edit personnel record</h3><p>Update personnel details and manage Cognito account roles.</p></div></div>
         <label className="settings-member-picker">Select personnel<select value={selectedId} onChange={e => {
           const m = members.find(x => x.id === e.target.value);
           setSelectedId(e.target.value);
