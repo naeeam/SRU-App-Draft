@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Shell, { client, useApp, type Member } from "../components/Shell";
+import "./settings.css";
 
 const FIELDS = [
   "rank", "name", "email", "phone", "driver", "appointment",
@@ -207,22 +208,22 @@ function SettingsContent() {
   }
 
   return (
-    <>
-      <h2>KAH Settings</h2>
-      {message && <p role="status">{message}</p>}
-      <section>
-        <h3>Rota manpower strength</h3>
-        <label>Personnel count
+    <div className="settings-page">
+      <div className="settings-intro"><div><span className="settings-eyebrow">Administration / KAH only</span><h2>KAH Settings</h2><p>Manage your unit strength, personnel accounts and access in one place.</p></div><span className="settings-access">● Restricted access</span></div>
+      {message && <p className="settings-feedback" role="status">{message}</p>}
+      <section className="settings-card settings-strength">
+        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">01</span><div><h3>Rota manpower strength</h3><p>Set the active personnel count used by the dashboard.</p></div></div>
+        <div className="settings-strength-controls"><label>Personnel count
           <input type="number" min="1" max="10000" value={strength} onChange={e => setStrength(e.target.value)} />
         </label>
-        <button type="button" disabled={busy} onClick={saveStrength}>Save strength</button>
+        <button type="button" disabled={busy} onClick={saveStrength}>Save strength</button></div>
       </section>
-      <section>
-        <h3>Create personnel account</h3>
+      <section className="settings-card">
+        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">02</span><div><h3>Create personnel account</h3><p>Register a member and generate their initial sign-in credentials.</p></div></div>
         <p><small>New accounts receive a temporary password and must change it at first sign-in. Cognito invitations are suppressed.</small></p>
-        <div className="apply-form">
+        <div className="settings-form-grid">
           {FIELDS.map(field => (
-            <label key={field}>
+            <label key={field} className={["name","email"].includes(field) ? "settings-field-wide" : ""}>
               {field.replaceAll("_", " ")}
               {field === "rank" ? (
                 <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>
@@ -243,17 +244,17 @@ function SettingsContent() {
             </label>
           ))}
         </div>
-        <button type="button" disabled={busy} onClick={addManual}>Create account</button>
+        <div className="settings-actions"><button type="button" disabled={busy} onClick={addManual}>Create personnel account</button></div>
       </section>
-      <section>
-        <h3>CSV account import</h3>
-        <p><small>Headers: {FIELDS.join(", ")}</small></p>
-        <textarea rows={7} value={csv} onChange={e => setCsv(e.target.value)} placeholder="Paste CSV with a header row" />
-        <button type="button" disabled={busy} onClick={previewCsv}>Preview CSV</button>
+      <section className="settings-card">
+        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">03</span><div><h3>Bulk account import</h3><p>Paste a CSV, validate each row and review the results before creating accounts.</p></div></div>
+        <p className="settings-helper">Required CSV headers (in order): <code>{FIELDS.join(", ")}</code></p>
+        <textarea aria-label="CSV account data" rows={7} value={csv} onChange={e => setCsv(e.target.value)} placeholder="Paste CSV with a header row" />
+        <div className="settings-actions"><button className="ghost" type="button" disabled={busy} onClick={previewCsv}>Preview and validate CSV</button></div>
         {!!rows.length && (
           <>
             <p>{rows.length} rows ready for review.</p>
-            <div style={{ overflowX: "auto" }}>
+            <div className="settings-table-wrap">
               <table><thead><tr><th>Row</th><th>Email</th><th>Validation</th></tr></thead>
                 <tbody>{rows.map((row, i) => <tr key={i}>
                   <td>{i + 2}</td><td>{row.email}</td>
@@ -266,10 +267,10 @@ function SettingsContent() {
         {!!results.length && <ul>{results.map((r, i) => <li key={i}>{r}</li>)}</ul>}
       </section>
       {!!credentials.length && (
-        <section>
+        <section className="settings-card settings-credentials">
           <h3>Temporary credentials — copy now</h3>
           <p><strong>These passwords are displayed only in this session. Store them securely.</strong></p>
-          <div style={{ overflowX: "auto" }}>
+          <div className="settings-table-wrap">
             <table><thead><tr><th>Email</th><th>Temporary password</th></tr></thead>
               <tbody>{credentials.map(v => <tr key={v.email}><td>{v.email}</td><td><code>{v.temporaryPassword}</code></td></tr>)}</tbody>
             </table>
@@ -277,9 +278,9 @@ function SettingsContent() {
           <button type="button" onClick={() => setCredentials([])}>Clear displayed passwords</button>
         </section>
       )}
-      <section>
-        <h3>Edit personnel record</h3>
-        <select value={selectedId} onChange={e => {
+      <section className="settings-card">
+        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">04</span><div><h3>Edit personnel record</h3><p>Update personnel details and manage Cognito account roles.</p></div></div>
+        <label className="settings-member-picker">Select personnel<select value={selectedId} onChange={e => {
           const m = members.find(x => x.id === e.target.value);
           setSelectedId(e.target.value);
           if (m) setForm({
@@ -292,23 +293,23 @@ function SettingsContent() {
         }}>
           <option value="">Select a member</option>
           {members.map(m => <option key={m.id} value={m.id}>{m.rank} {m.name} ({m.email})</option>)}
-        </select>
-        {selected && <>
+        </select></label>
+        {selected && <div className="settings-edit-panel">
           <p>Editing {selected.name}. Email changes are not supported. Rank, driver and appointment are synchronized separately with Cognito.</p>
-          {(["name", "phone", "al", "oil", "phol", "mc_count"] as const).map(field => (
+          <div className="settings-form-grid">{(["name", "phone", "al", "oil", "phol", "mc_count"] as const).map(field => (
             <label key={field}>{field}
               <input value={form[field]} onChange={e => setForm(v => ({ ...v, [field]: e.target.value }))} />
             </label>
           ))}
-          <button type="button" disabled={busy} onClick={updateMember}>Save member changes</button>
-          <h4>Account roles</h4>
+          </div><div className="settings-actions"><button type="button" disabled={busy} onClick={updateMember}>Save member details</button></div>
+          <h4>Account roles</h4><div className="settings-form-grid">
           <label>Rank <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>{RANKS.map(r => <option key={r}>{r}</option>)}</select></label>
           <label>Driver <select value={form.driver} onChange={e => setForm(v => ({ ...v, driver: e.target.value }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
           <label>Appointment <select value={form.appointment} onChange={e => setForm(v => ({ ...v, appointment: e.target.value }))}>{APPOINTMENTS.map(a => <option key={a} value={a}>{a || "None"}</option>)}</select></label>
-          <button type="button" disabled={busy} onClick={updateGroups}>Save Cognito roles</button>
-        </>}
+          </div><div className="settings-actions"><button type="button" disabled={busy} onClick={updateGroups}>Save Cognito roles</button></div>
+        </div>}
       </section>
-    </>
+    </div>
   );
 }
 

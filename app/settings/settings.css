@@ -1,0 +1,54 @@
+/* KAH Settings: deliberately scoped so existing pages keep their styling. */
+.lv .settings-page { padding: 22px 0 64px; display: grid; gap: 22px; }
+.lv .settings-intro { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 8px 2px 6px; }
+.lv .settings-eyebrow { display: block; color: var(--accent-text); font-size: .72rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; margin-bottom: 8px; }
+.lv .settings-intro h2 { display: block; margin: 0 0 6px; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 750; letter-spacing: -.035em; }
+.lv .settings-intro h2::after { display: none; }
+.lv .settings-intro p { color: var(--muted); font-size: .92rem; max-width: 550px; }
+.lv .settings-access { flex: none; border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 7px 12px; color: var(--muted); font-size: .73rem; font-weight: 700; }
+.lv .settings-card { min-width: 0; padding: 26px 28px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); }
+.lv .settings-card-heading { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 21px; margin-bottom: 22px; border-bottom: 1px solid var(--border); }
+.lv .settings-card-icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-text); font-size: .78rem; font-weight: 800; letter-spacing: .02em; }
+.lv .settings-card-heading h3 { margin: 0 0 4px; font-size: 1.12rem; line-height: 1.35; font-weight: 750; letter-spacing: -.025em; }
+.lv .settings-card-heading p { color: var(--muted); font-size: .86rem; line-height: 1.55; }
+.lv .settings-card > p:not(.settings-helper) { margin: 0 0 18px; color: var(--muted); font-size: .85rem; line-height: 1.6; }
+.lv .settings-card > p small { font-size: inherit; }
+.lv .settings-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 18px; row-gap: 18px; }
+.lv .settings-form-grid .settings-field-wide { grid-column: 1 / -1; }
+.lv .settings-page label { min-width: 0; display: grid; gap: 7px; color: var(--muted); font-size: .74rem; font-weight: 750; letter-spacing: .055em; text-transform: uppercase; }
+.lv .settings-page input, .lv .settings-page select, .lv .settings-page textarea { display: block; width: 100%; min-width: 0; min-height: 44px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 9px; color: var(--text); padding: 10px 12px; font-size: .92rem; font-weight: 500; letter-spacing: normal; text-transform: none; }
+.lv .settings-page input:focus, .lv .settings-page select:focus, .lv .settings-page textarea:focus { border-color: var(--accent-text); }
+.lv .settings-page textarea { min-height: 150px; line-height: 1.6; resize: vertical; }
+.lv .settings-strength-controls { display: flex; align-items: flex-end; gap: 14px; }
+.lv .settings-strength-controls label { width: min(240px, 100%); }
+.lv .settings-strength-controls button { white-space: nowrap; }
+.lv .settings-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 22px; }
+.lv .settings-page button { min-height: 42px; padding: 10px 18px; }
+.lv .settings-helper { margin: 0 0 14px; font-size: .83rem; line-height: 1.65; color: var(--muted); }
+.lv .settings-helper code { display: block; margin-top: 7px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); white-space: normal; overflow-wrap: anywhere; font-size: .77rem; }
+.lv .settings-table-wrap { margin-top: 16px; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+.lv .settings-table-wrap table { min-width: 500px; }
+.lv .settings-table-wrap td { overflow-wrap: anywhere; }
+.lv .settings-page .settings-feedback { padding: 12px 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 9px; font-size: .86rem; line-height: 1.5; }
+.lv .settings-page .settings-credentials { border-color: var(--warn); }
+.lv .settings-credentials h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.lv .settings-credentials p { color: var(--muted); font-size: .85rem; }
+.lv .settings-credentials code { user-select: all; }
+.lv .settings-member-picker { margin-bottom: 16px; }
+.lv .settings-edit-panel { padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.lv .settings-edit-panel > p { color: var(--muted); font-size: .85rem; line-height: 1.6; margin-bottom: 20px; }
+.lv .settings-edit-panel h4 { font-size: .95rem; padding-top: 22px; margin: 24px 0 16px; border-top: 1px solid var(--border); }
+.lv .settings-page ul { margin-top: 12px; }
+.lv .settings-page li { padding: 9px 12px; font-size: .84rem; }
+@media (max-width: 620px) {
+  .lv .settings-page { padding-top: 16px; gap: 16px; }
+  .lv .settings-intro { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .lv .settings-card { padding: 18px 16px; }
+  .lv .settings-card-heading { gap: 11px; padding-bottom: 17px; margin-bottom: 18px; }
+  .lv .settings-form-grid { grid-template-columns: minmax(0,1fr); gap: 15px; }
+  .lv .settings-form-grid .settings-field-wide { grid-column: auto; }
+  .lv .settings-strength-controls { align-items: stretch; flex-direction: column; }
+  .lv .settings-strength-controls label { width: 100%; }
+  .lv .settings-strength-controls button { align-self: flex-start; }
+  .lv .settings-edit-panel { padding: 14px; }
+}
