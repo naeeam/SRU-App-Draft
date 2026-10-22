@@ -61,7 +61,7 @@ function validate(row: Form): string[] {
 }
 
 function SettingsContent() {
-  const { isApprover } = useApp();
+  const { isApprover, email } = useApp();
   const [strength, setStrength] = useState("34");
   const [strengthExists, setStrengthExists] = useState(false);
   const [form, setForm] = useState<Form>({ ...empty });
@@ -195,7 +195,7 @@ function SettingsContent() {
         remaining: amount,
         expiryDate: awardExpiry,
         awardedAt: new Date().toISOString(),
-        awardedBy: "KAH",
+        awardedBy: email,
       });
       if (errors?.length) throw new Error(errors[0].message);
       setAwardAmount("");
