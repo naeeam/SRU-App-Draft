@@ -15,7 +15,7 @@ import { addDays, formatDate, formatDateTime, nextDutyDay } from "./lib/dates";
 // Compare approved time-off periods in Singapore local time (UTC+08:00).
 // The selected duty day controls which entries appear; only elapsed periods turn green.
 function timeOffCompleted(endDate: string, endTime: string | null | undefined, now: number): boolean {
-  if (!endTime || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(endTime)) return false;
+  if (!endTime || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)) return false;
   const end = Date.parse(`${endDate}T${endTime}:00+08:00`);
   return Number.isFinite(end) && now >= end;
 }
