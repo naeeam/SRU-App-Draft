@@ -16,9 +16,11 @@ export type OilAllocation = { creditId: string; amount: number; expiryDate: stri
 const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export function singaporeDate(at: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(at);
+  }).formatToParts(at);
+  const get = (type: string) => parts.find(part => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 export function isValidDate(value: string): boolean {
