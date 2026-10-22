@@ -53,6 +53,7 @@ function Dashboard() {
 
   const away = peopleOn(manpower, date, ["APPROVED"]);
   const timeOff = timeOffOn(date);
+  const activeTimeOff = timeOff.filter((l) => now === null || !timeOffCompleted(l.endDate, l.endTime, now));
   const available = rotaStrength - away.length;
   const pending = leaves.filter((l) => l.status === "PENDING").length;
   const next7 = Array.from({ length: 7 }, (_, i) => addDays(date, i * DUTY_CYCLE));
@@ -68,7 +69,7 @@ function Dashboard() {
         <div className="stat"><b>{rotaStrength}</b>Total</div>
         <div className="stat ok"><b>{available}</b>Available</div>
         <div className="stat no"><b>{away.length}</b>Unavailable</div>
-        <div className="stat info"><b>{timeOff.length}</b>Time off</div>
+        <div className="stat info"><b>{activeTimeOff.length}</b>Time off</div>
       </div>
       <small className="footnote">Time off is separate from rota strength and never reduces it.</small>
 
