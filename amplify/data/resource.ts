@@ -51,6 +51,36 @@ const schema = a.schema({
       allow.groups(approvers).to(["read", "update", "delete"]),
     ]),
 
+  // Individual OIL awards. Legacy Member.oil remains unchanged until migrated.
+  OilCredit: a
+    .model({
+      memberId: a.id().required(),
+      amount: a.float().required(),
+      remaining: a.float().required(),
+      expiryDate: a.date().required(),
+      awardedAt: a.datetime().required(),
+      awardedBy: a.string().required(),
+    })
+    .secondaryIndexes((index) => [index("memberId")])
+    .authorization((allow) => [
+      allow.authenticated().to(["read"]),
+      allow.groups(approvers).to(["create", "read"]),
+    ]),
+
+  // Records the exact OIL credits reserved by each leave request.
+  OilAllocation: a
+    .model({
+      leaveId: a.id().required(),
+      creditId: a.id().required(),
+      amount: a.float().required(),
+      expiryDate: a.date().required(),
+    })
+    .secondaryIndexes((index) => [index("leaveId")])
+    .authorization((allow) => [
+      allow.authenticated().to(["read"]),
+      allow.groups(approvers).to(["read"]),
+    ]),
+
   RotaSettings: a
     .model({ strength: a.integer().required() })
     .authorization((allow) => [
