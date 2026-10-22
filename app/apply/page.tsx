@@ -651,77 +651,22 @@ function ApplyForm() {
       return;
     }
 
-    let before: Balance | null = null;
-    let leaveSaved = false;
-
     try {
-      // 1. Deduct the logged-in user's balance.
-      if (check.plan && myRow) {
-        before = balanceOf(myRow);
-
-        const { errors: balanceErrors } =
-          await saveBalance(
-            myRow.id,
-            afterDeduction(
-              before,
-              check.plan.take
-            )
-          );
-
-        if (balanceErrors?.length) {
-          before = null;
-
-          setError(
-            `Could not update your leave balance: ${balanceErrors[0].message}`
-          );
-
-          return;
-        }
+      if (!myRow) throw new Error("Your account has no linked Member record.");
+      const { data: created, errors } = await client.mutations.submitLeaveForMember({
+        memberId: myRow.id,
+        leaveType,
+        startDate,
+        endDate,
+        startTime: isTimeOff ? startTime : undefined,
+        endTime: isTimeOff ? endTime : undefined,
+        reason,
+        requestId: crypto.randomUUID(),
+      });
+      if (errors?.length || !created?.leaveId) {
+        throw new Error(errors?.[0]?.message ?? "Could not submit leave.");
       }
-
-      // 2. Create the existing self-owned leave request.
-      const { data: newLeave, errors } =
-        await client.models.Leave.create({
-          applicantName,
-          leaveType:
-            leaveType as Leave["leaveType"],
-          startDate,
-          endDate,
-          startTime: isTimeOff
-            ? startTime
-            : undefined,
-          endTime: isTimeOff
-            ? endTime
-            : undefined,
-          isDriver,
-          appointment:
-            appointment || undefined,
-          reason,
-          deductedOil:
-            check.plan?.take.oil,
-          deductedAl:
-            check.plan?.take.al,
-          deductedPhol:
-            check.plan?.take.phol,
-        });
-
-      if (errors?.length || !newLeave) {
-        if (before && myRow) {
-          await saveBalance(
-            myRow.id,
-            before
-          );
-        }
-
-        setError(
-          errors?.[0]?.message ||
-          "Could not submit your request. Please try again."
-        );
-
-        return;
-      }
-
-      leaveSaved = true;
+      const newLeave = { id: created.leaveId };
 
       // 3. Upload the optional screenshot.
       if (attachedFile) {
@@ -754,9 +699,9 @@ function ApplyForm() {
 
           // 4. Associate the uploaded screenshot.
           const updateResult =
-            await client.models.Leave.update({
-              id: newLeave.id,
-              screenshotPath: filePath,
+            await client.mutations.attachLeaveScreenshot({
+              leaveId: newLeave.id,
+              path: filePath,
             });
 
           if (updateResult.errors?.length) {
@@ -781,32 +726,8 @@ function ApplyForm() {
 
       router.push("/my-leave");
     } catch (err) {
-      console.error(
-        "Submit failed:",
-        err
-      );
-
-      if (
-        before &&
-        myRow &&
-        !leaveSaved
-      ) {
-        try {
-          await saveBalance(
-            myRow.id,
-            before
-          );
-        } catch (undoErr) {
-          console.error(
-            "Could not put the leave balance back:",
-            undoErr
-          );
-        }
-      }
-
-      setError(
-        "Something went wrong while submitting. Check your connection and try again."
-      );
+      console.error("Submit failed:", err);
+      setError(err instanceof Error ? err.message : "Could not submit leave.");
     } finally {
       setBusy(false);
     }

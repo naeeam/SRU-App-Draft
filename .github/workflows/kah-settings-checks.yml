@@ -1,0 +1,22 @@
+name: KAH Settings checks
+on:
+  pull_request:
+    branches: [main]
+concurrency:
+  group: kah-settings-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      # Existing package-lock.json is out of sync; install without modifying it in CI.
+      - run: npm install --no-package-lock --no-audit --no-fund
+      # Amplify outputs are generated during deployment and are not committed.
+      - run: echo '{}' > amplify_outputs.json
+      - run: npx tsc --noEmit
+      - run: npx tsc -p amplify/tsconfig.json --noEmit

@@ -12,7 +12,6 @@ import Shell, {
 } from "../components/Shell";
 import { MAX_LEAVE_PER_DUTY_DAY } from "../lib/config";
 import { dutyDaysBetween, formatDate } from "../lib/dates";
-import { redeductLeave, refundLeave } from "../lib/Balanceactions";
 import { getUrl } from "aws-amplify/storage"; // 👈 Import storage getUrl API
 
 type Status = "APPROVED" | "REJECTED" | "PENDING";
@@ -115,34 +114,19 @@ function ApprovalsList() {
     }
 
     const before = { status: l.status, reviewedBy: l.reviewedBy };
-    const decision =
-      status === "PENDING"
-        ? { status, reviewedBy: "" }
-        : { status, reviewedBy: `${role} ${email}`, reviewedAt: new Date().toISOString() };
-
+    const decision = status === "PENDING"
+      ? { status, reviewedBy: "" }
+      : { status, reviewedBy: `${role} ${email}`, reviewedAt: new Date().toISOString() };
     setLocal((m) => ({ ...m, [l.id]: decision }));
-    const { errors } = await client.models.Leave.update({ id: l.id, ...decision });
-    if (errors) {
-      setLocal((m) => ({ ...m, [l.id]: before }));
-      setError(errors[0].message);
-      return;
-    }
-
-    // Leave balance: a rejected request gives back what it took, and bringing it back takes it again.
-    // Approved <-> pending changes nothing, because the balance is already taken.
     try {
-      if (status === "REJECTED" && l.status !== "REJECTED") {
-        const r = await refundLeave(l);
-        if (r.message) setError(r.message);
-        if (r.ok) setLocal((m) => ({ ...m, [l.id]: { ...m[l.id], balanceRefunded: true } }));
-      } else if (l.status === "REJECTED" && status !== "REJECTED") {
-        const r = await redeductLeave(l);
-        if (r.message) setError(r.message);
-        if (r.ok) setLocal((m) => ({ ...m, [l.id]: { ...m[l.id], balanceRefunded: false } }));
+      const { data, errors } = await client.mutations.reviewLeave({ leaveId: l.id, status });
+      if (errors?.length || !data) {
+        throw new Error(errors?.[0]?.message ?? "Could not save review.");
       }
+      setLocal((m) => ({ ...m, [l.id]: { ...m[l.id], balanceRefunded: status === "REJECTED" } }));
     } catch (err) {
-      console.error("Leave balance update failed:", err);
-      setError("The decision was saved, but the leave balance could not be updated. Please check the person's balance.");
+      setLocal((m) => ({ ...m, [l.id]: before }));
+      setError(err instanceof Error ? err.message : "Review failed.");
     }
   }
 

@@ -275,6 +275,7 @@ function Frame({
             )}
           {(me.isApprover || me.isOIC) && link("/leave-balance", "Leave Balance")}
           {link("/members", "My Info")}
+          {me.isApprover && link("/settings", "Settings")}
         </nav>
 
         <main className="content" id="main">

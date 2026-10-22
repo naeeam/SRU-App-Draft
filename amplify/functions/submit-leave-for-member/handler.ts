@@ -88,11 +88,9 @@ export const handler: Schema["submitLeaveForMember"]["functionHandler"] =
                 ? rawGroups.split(",").map((g) => g.trim())
                 : [];
 
-        if (!groups.some((g) => ALLOWED_GROUPS.has(g))) {
-            throw new Error(
-                "Only KAH or OIC can submit leave for other members."
-            );
-        }
+        const canSubmitForOthers = groups.some((g) => ALLOWED_GROUPS.has(g));
+        const callerSub = String(claims.sub ?? "");
+        if (!callerSub) throw new Error("Missing caller identity.");
 
         const {
             memberId,
@@ -172,6 +170,10 @@ export const handler: Schema["submitLeaveForMember"]["functionHandler"] =
 
         if (!member) {
             throw new Error("Selected member does not exist.");
+        }
+        const isSelf = String(member.userId ?? "") === callerSub;
+        if (!isSelf && !canSubmitForOthers) {
+            throw new Error("Only KAH or OIC can submit leave for another member.");
         }
 
         const cognitoUsername = String(
@@ -272,7 +274,9 @@ export const handler: Schema["submitLeaveForMember"]["functionHandler"] =
         // Preserve the existing owner construction.
         // Verify this format against an existing self-created
         // Leave record before relying on delegated ownership.
-        const owner = `${user.Username}::${userSub}`;
+        const owner = isSelf
+            ? `${userSub}::${user.Username}`
+            : `${user.Username}::${userSub}`;
 
         const days = dutyDaysBetween(startDate, endDate);
 

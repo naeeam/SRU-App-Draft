@@ -2,6 +2,9 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { submitLeaveForMember } from "../functions/submit-leave-for-member/resource";
 import { managePersonnel } from "../functions/manage-personnel/resource";
 import { cancelLeave } from "../functions/cancel-leave/resource";
+import { reviewLeave } from "../functions/review-leave/resource";
+import { attachScreenshot } from "../functions/attach-screenshot/resource";
+import { updatePersonnelGroups } from "../functions/update-personnel-groups/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -41,11 +44,18 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       // 1. Owner can create, read, update, and delete their own leave
-      allow.owner().to(["create", "read", "update", "delete"]),
+      allow.owner().to(["read"]),
       // 2. Everyone logged in can read
       allow.authenticated().to(["read"]),
       // 3. Approvers can read and update (for approving/rejecting)
       allow.groups(approvers).to(["read", "update", "delete"]),
+    ]),
+
+  RotaSettings: a
+    .model({ strength: a.integer().required() })
+    .authorization((allow) => [
+      allow.authenticated().to(["read"]),
+      allow.groups(approvers).to(["create", "read", "update"]),
     ]),
 
   Member: a
@@ -69,6 +79,38 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       // Personnel changes are KAH-only. Do not grant owners blanket update access.
     ]),
+  updatePersonnelGroups: a
+    .mutation()
+    .arguments({
+      memberId: a.id().required(),
+      rank: a.string().required(),
+      driver: a.boolean().required(),
+      appointment: a.string().required(),
+    })
+    .returns(a.ref("UpdatePersonnelGroupsResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(updatePersonnelGroups)),
+
+  UpdatePersonnelGroupsResult: a.customType({ message: a.string().required() }),
+
+  attachLeaveScreenshot: a
+    .mutation()
+    .arguments({ leaveId: a.id().required(), path: a.string().required() })
+    .returns(a.ref("AttachScreenshotResult"))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(attachScreenshot)),
+
+  AttachScreenshotResult: a.customType({ message: a.string().required() }),
+
+  reviewLeave: a
+    .mutation()
+    .arguments({ leaveId: a.id().required(), status: a.string().required() })
+    .returns(a.ref("ReviewLeaveResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(reviewLeave)),
+
+  ReviewLeaveResult: a.customType({ message: a.string().required() }),
+
   cancelLeave: a
     .mutation()
     .arguments({ leaveId: a.id().required() })
