@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { submitLeaveForMember } from "../functions/submit-leave-for-member/resource";
 import { managePersonnel } from "../functions/manage-personnel/resource";
 import { cancelLeave } from "../functions/cancel-leave/resource";
+import { reviewLeave } from "../functions/review-leave/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -69,6 +70,15 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       // Personnel changes are KAH-only. Do not grant owners blanket update access.
     ]),
+  reviewLeave: a
+    .mutation()
+    .arguments({ leaveId: a.id().required(), status: a.string().required() })
+    .returns(a.ref("ReviewLeaveResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(reviewLeave)),
+
+  ReviewLeaveResult: a.customType({ message: a.string().required() }),
+
   cancelLeave: a
     .mutation()
     .arguments({ leaveId: a.id().required() })
