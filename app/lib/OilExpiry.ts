@@ -67,3 +67,28 @@ export function refundableOil(
   if (!isValidDate(refundDate)) throw new Error("Invalid refund date.");
   return allocations.filter(a => a.expiryDate >= refundDate);
 }
+
+/**
+ * Compute the spendable OIL balance from tracked credits and any legacy
+ * untracked balance. Keep the two sources separate until migration.
+ */
+export function effectiveOilBalance(
+  legacyOil: number,
+  credits: OilCredit[],
+  applicationDate: string,
+): number {
+  if (!Number.isFinite(legacyOil) || legacyOil < 0) {
+    throw new Error("Invalid legacy OIL balance.");
+  }
+  return round(legacyOil + availableOil(credits, applicationDate));
+}
+
+/**
+ * Determine whether an award has expired; it remains valid on the expiry day.
+ */
+export function isOilExpired(expiryDate: string, today: string): boolean {
+  if (!isValidDate(expiryDate) || !isValidDate(today)) {
+    throw new Error("Invalid OIL expiry comparison.");
+  }
+  return expiryDate < today;
+}
