@@ -1,9 +1,10 @@
 name: KAH Settings checks
 on:
-  push:
-    branches: [feature/kah-settings]
   pull_request:
     branches: [main]
+concurrency:
+  group: kah-settings-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   typecheck:
     runs-on: ubuntu-latest
