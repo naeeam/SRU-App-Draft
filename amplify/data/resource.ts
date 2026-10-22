@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { submitLeaveForMember } from "../functions/submit-leave-for-member/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -63,6 +64,28 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       allow.ownerDefinedIn("userId").identityClaim("sub").to(["update"]), // people can edit their own row
     ]),
+  submitLeaveForMember: a
+    .mutation()
+    .arguments({
+      memberId: a.id().required(),
+      leaveType: a.string().required(),
+      startDate: a.date().required(),
+      endDate: a.date().required(),
+      startTime: a.string(),
+      endTime: a.string(),
+      reason: a.string(),
+      requestId: a.id().required(),
+    })
+    .returns(a.ref("DelegatedLeaveResult"))
+    .authorization((allow) => [
+      allow.authenticated(),
+    ])
+    .handler(a.handler.function(submitLeaveForMember)),
+
+  DelegatedLeaveResult: a.customType({
+    leaveId: a.id().required(),
+    message: a.string().required(),
+  }),
 });
 
 export type Schema = ClientSchema<typeof schema>;
