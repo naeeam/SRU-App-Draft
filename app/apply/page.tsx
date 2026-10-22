@@ -699,9 +699,9 @@ function ApplyForm() {
 
           // 4. Associate the uploaded screenshot.
           const updateResult =
-            await client.models.Leave.update({
-              id: newLeave.id,
-              screenshotPath: filePath,
+            await client.mutations.attachLeaveScreenshot({
+              leaveId: newLeave.id,
+              path: filePath,
             });
 
           if (updateResult.errors?.length) {
