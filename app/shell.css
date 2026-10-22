@@ -383,6 +383,22 @@
   border-color: var(--border-strong);
 }
 
+/* Completed time off stays visible on the selected duty day, but turns green. */
+.lv li.time-off-completed {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  box-shadow: var(--shadow-1), inset 3px 0 0 var(--ok);
+}
+.lv li.time-off-completed .time-off-status {
+  color: var(--ok);
+}
+.lv .time-off-status {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 /* Left-edge markers, kept as inset shadows so rows never shift size. */
 .lv li.accent {
   box-shadow: var(--shadow-1), inset 3px 0 0 var(--accent);
