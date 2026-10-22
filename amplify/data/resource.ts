@@ -37,6 +37,7 @@ const schema = a.schema({
       status: a.string(),
       reviewedBy: a.string(),
       reviewedAt: a.datetime(),
+      oilExpiryDate: a.date(), // Optional: older leave records display "No expiry".
       deductedOil: a.float(),
       deductedAl: a.float(),
       deductedPhol: a.float(),
