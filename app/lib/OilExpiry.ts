@@ -46,10 +46,10 @@ export function allocateOil(
   const allocations: OilAllocation[] = [];
   for (const credit of [...credits].sort((a, b) =>
     a.expiryDate.localeCompare(b.expiryDate) || a.id.localeCompare(b.id))) {
-    if (credit.expiryDate < applicationDate || credit.remaining <= 0) continue;
-    if (!Number.isFinite(credit.remaining) || credit.remaining < 0) {
-      throw new Error("Invalid OIL credit balance.");
+    if (!isValidDate(credit.expiryDate) || !Number.isFinite(credit.remaining) || credit.remaining < 0 || !Number.isFinite(credit.amount) || credit.amount < 0 || credit.remaining > credit.amount) {
+      throw new Error("Invalid OIL credit.");
     }
+    if (credit.expiryDate < applicationDate || credit.remaining === 0) continue;
     const used = round(Math.min(remaining, credit.remaining));
     if (used > 0) {
       allocations.push({ creditId: credit.id, amount: used, expiryDate: credit.expiryDate });
