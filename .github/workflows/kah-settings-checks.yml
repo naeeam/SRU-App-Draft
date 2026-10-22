@@ -16,4 +16,7 @@ jobs:
           cache: npm
       # Existing package-lock.json is out of sync; install without modifying it in CI.
       - run: npm install --no-package-lock --no-audit --no-fund
+      # Amplify outputs are generated during deployment and are not committed.
+      - run: echo '{}' > amplify_outputs.json
       - run: npx tsc --noEmit
+      - run: npx tsc -p amplify/tsconfig.json --noEmit
