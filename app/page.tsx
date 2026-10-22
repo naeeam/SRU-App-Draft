@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import DutyDatePicker from "./components/Dutydatepicker";
-import Shell, { peopleOn, useApp } from "./components/Shell";
+import Shell, { client, peopleOn, useApp } from "./components/Shell";
 import {
   DUTY_CYCLE,
   LEAVE_TYPES,
@@ -14,6 +14,17 @@ import { addDays, formatDate, formatDateTime, nextDutyDay } from "./lib/dates";
 
 function Dashboard() {
   const { isApprover, leaves } = useApp();
+  const [rotaStrength, setRotaStrength] = useState(ROTA_STRENGTH);
+  useEffect(() => {
+    const subscription = client.models.RotaSettings.observeQuery({ filter: { id: { eq: "main" } } }).subscribe({
+      next: ({ items }) => {
+        const value = items.find(item => item.id === "main")?.strength;
+        setRotaStrength(typeof value === "number" && value > 0 ? value : ROTA_STRENGTH);
+      },
+      error: (err) => console.error("Rota settings unavailable:", err),
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   const today = new Date().toLocaleDateString("en-CA");
   const [date, setDate] = useState(() => nextDutyDay(today));
 
@@ -27,7 +38,7 @@ function Dashboard() {
 
   const away = peopleOn(manpower, date, ["APPROVED"]);
   const timeOff = timeOffOn(date);
-  const available = ROTA_STRENGTH - away.length;
+  const available = rotaStrength - away.length;
   const pending = leaves.filter((l) => l.status === "PENDING").length;
   const next7 = Array.from({ length: 7 }, (_, i) => addDays(date, i * DUTY_CYCLE));
 
@@ -39,7 +50,7 @@ function Dashboard() {
       </div>
 
       <div className="stats">
-        <div className="stat"><b>{ROTA_STRENGTH}</b>Total</div>
+        <div className="stat"><b>{rotaStrength}</b>Total</div>
         <div className="stat ok"><b>{available}</b>Available</div>
         <div className="stat no"><b>{away.length}</b>Unavailable</div>
         <div className="stat info"><b>{timeOff.length}</b>Time off</div>
@@ -112,12 +123,12 @@ function Dashboard() {
               return (
                 <tr key={d}>
                   <td>{formatDate(d)}</td>
-                  <td>{ROTA_STRENGTH - n}</td>
+                  <td>{rotaStrength - n}</td>
                   <td>{n}</td>
                   <td className="info-text">{timeOffOn(d).length}</td>
                   <td>{Math.max(0, MAX_LEAVE_PER_DUTY_DAY - taken)} of {MAX_LEAVE_PER_DUTY_DAY}</td>
                   <td className="col-bar">
-                    <div className="bar"><i style={{ width: `${((ROTA_STRENGTH - n) / ROTA_STRENGTH) * 100}%` }} /></div>
+                    <div className="bar"><i style={{ width: `${((rotaStrength - n) / rotaStrength) * 100}%` }} /></div>
                   </td>
                 </tr>
               );
