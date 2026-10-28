@@ -12,6 +12,7 @@ import { cancelLeave } from "./functions/cancel-leave/resource";
 import { reviewLeave } from "./functions/review-leave/resource";
 import { attachScreenshot } from "./functions/attach-screenshot/resource";
 import { updatePersonnelGroups } from "./functions/update-personnel-groups/resource";
+import { awardOil } from "./functions/award-oil/resource";
 
 const backend = defineBackend({
   auth,
@@ -23,6 +24,7 @@ const backend = defineBackend({
   reviewLeave,
   attachScreenshot,
   updatePersonnelGroups,
+  awardOil,
 });
 
 // DynamoDB tables
@@ -147,4 +149,20 @@ groupsFn.addToRolePolicy(new PolicyStatement({
 groupsCfn.addPropertyOverride("Environment.Variables", {
   MEMBER_TABLE_NAME: memberTable.tableName,
   USER_POOL_ID: backend.auth.resources.userPool.userPoolId,
+});
+
+
+// Secure OIL awards: update the individual credit and aggregate Member balance atomically.
+const awardOilFn = backend.awardOil.resources.lambda;
+const awardOilCfn = backend.awardOil.resources.cfnResources.cfnFunction;
+const oilCreditTable = backend.data.resources.tables["OilCredit"];
+oilCreditTable.grantReadWriteData(awardOilFn);
+memberTable.grantReadWriteData(awardOilFn);
+awardOilFn.addToRolePolicy(new PolicyStatement({
+  actions: ["dynamodb:TransactWriteItems"],
+  resources: [oilCreditTable.tableArn, memberTable.tableArn],
+}));
+awardOilCfn.addPropertyOverride("Environment.Variables", {
+  MEMBER_TABLE_NAME: memberTable.tableName,
+  OIL_CREDIT_TABLE_NAME: oilCreditTable.tableName,
 });
