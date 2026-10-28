@@ -334,6 +334,7 @@ function SettingsContent() {
       }
       setBulkOilResults([...reports]);
     }
+    await refreshOilCredits().catch(() => undefined);
     setBusy(false);
     const failed = reports.filter(report => report.includes(": FAILED")).length;
     setMessage(failed
@@ -374,6 +375,7 @@ function SettingsContent() {
           }));
         }
       }
+      await refreshOilCredits().catch(() => undefined);
       setAwardAmount("");
       setAwardExpiry("");
       setMessage("OIL award recorded. The individual award and existing leave balance have both been updated.");
