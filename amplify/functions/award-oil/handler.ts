@@ -34,10 +34,6 @@ export const handler: Schema["awardOil"]["functionHandler"] = async event => {
       Math.round(value * 100) !== value * 100) {
     throw new Error("Enter a valid member, request ID and positive OIL amount (maximum two decimal places).");
   }
-  if (!validDate(expiryDate) || expiryDate < singaporeDate()) {
-    throw new Error("Expiry date must be today or a future date in Singapore.");
-  }
-
   // Idempotency: a retry with the same request ID must never award the credit twice.
   const existingCredit = await db.send(new GetCommand({
     TableName: OIL_CREDIT_TABLE, Key: { id: requestId }, ConsistentRead: true,
@@ -50,6 +46,12 @@ export const handler: Schema["awardOil"]["functionHandler"] = async event => {
       throw new Error("This request ID has already been used for a different OIL award.");
     }
     return { message: "OIL award was already recorded; no duplicate balance change was made." };
+  }
+
+  // New awards must have a valid expiry date; replays of recorded awards above
+  // remain idempotent even after the original expiry date has passed.
+  if (!validDate(expiryDate) || expiryDate < singaporeDate()) {
+    throw new Error("Expiry date must be today or a future date in Singapore.");
   }
 
   const result = await db.send(new GetCommand({
