@@ -147,6 +147,7 @@ const schema = a.schema({
       rank: a.string().required(),
       driver: a.boolean().required(),
       appointment: a.string().required(),
+      oic: a.boolean().required(),
     })
     .returns(a.ref("UpdatePersonnelGroupsResult"))
     .authorization((allow) => [allow.groups(approvers)])
