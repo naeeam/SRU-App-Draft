@@ -18,6 +18,14 @@ const empty: Form = {
 const RANKS = ["LTA", "WO2", "SGT1", "SGT2", "CPL", "LCP"];
 const APPOINTMENTS = ["", "FF", "SC", "RC", "DRC"];
 
+type BulkOilRow = {
+  email: string;
+  amount: string;
+  expiryDate: string;
+  requestId: string;
+  line: number;
+};
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [], field = "", quoted = false;
@@ -70,6 +78,9 @@ function SettingsContent() {
   const [awardMemberId, setAwardMemberId] = useState("");
   const [awardAmount, setAwardAmount] = useState("");
   const [awardExpiry, setAwardExpiry] = useState("");
+  const [bulkOilCsv, setBulkOilCsv] = useState("");
+  const [bulkOilRows, setBulkOilRows] = useState<BulkOilRow[]>([]);
+  const [bulkOilResults, setBulkOilResults] = useState<string[]>([]);
   const [csv, setCsv] = useState("");
   const [rows, setRows] = useState<Form[]>([]);
   const [results, setResults] = useState<string[]>([]);
@@ -100,6 +111,24 @@ function SettingsContent() {
       return issues;
     });
   }, [rows, members]);
+
+  const bulkOilIssues = useMemo(() => {
+    const seen = new Set<string>();
+    return bulkOilRows.map(row => {
+      const issues: string[] = [];
+      const email = row.email.trim().toLowerCase();
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) issues.push("Invalid email");
+      if (!members.some(member => member.email.trim().toLowerCase() === email)) issues.push("No existing member matches this email");
+      const amount = Number(row.amount);
+      if (!row.amount.trim() || !Number.isFinite(amount) || amount <= 0 ||
+          Math.round(amount * 100) !== amount * 100) issues.push("Amount must be positive, max 2 decimals");
+      if (!isValidDate(row.expiryDate) || row.expiryDate < singaporeDate()) issues.push("Invalid or expired date");
+      const key = [email, row.amount.trim(), row.expiryDate].join("|");
+      if (seen.has(key)) issues.push("Duplicate award row");
+      seen.add(key);
+      return issues;
+    });
+  }, [bulkOilRows, members]);
 
   if (!isApprover) return <p>Only KAH (LTA or WO2) can access Settings.</p>;
 
@@ -173,6 +202,90 @@ function SettingsContent() {
     }
     setBusy(false);
     setMessage("Import finished. Save the credentials securely now. Failed rows can be corrected and retried individually.");
+  }
+
+  function previewBulkOilCsv() {
+    try {
+      const parsed = parseCsv(bulkOilCsv.replace(/^\\uFEFF/, ""));
+      const header = parsed.shift()?.map(value => value.trim().toLowerCase()) ?? [];
+      const expected = ["email", "amount", "expiry_date"];
+      if (header.length !== expected.length || expected.some((value, index) => header[index] !== value)) {
+        throw new Error("CSV headers must exactly match: email,amount,expiry_date");
+      }
+      if (!parsed.length) throw new Error("Add at least one OIL award row.");
+      if (parsed.length > 100) throw new Error("Submit a maximum of 100 OIL awards per batch.");
+      const previousIds = new Map(bulkOilRows.map(row => [
+        [row.email.trim().toLowerCase(), row.amount.trim(), row.expiryDate].join("|"),
+        row.requestId,
+      ]));
+      const nextRows = parsed.map((values, index) => {
+        if (values.length !== expected.length) throw new Error(`CSV row ${index + 2} must contain exactly 3 columns.`);
+        const email = values[0].trim();
+        const amount = values[1].trim();
+        const expiryDate = values[2].trim();
+        const key = [email.toLowerCase(), amount, expiryDate].join("|");
+        return {
+          email, amount, expiryDate, line: index + 2,
+          requestId: previousIds.get(key) ?? crypto.randomUUID(),
+        };
+      });
+      setBulkOilRows(nextRows);
+      setBulkOilResults([]);
+      setMessage("Bulk OIL preview ready. Review every row before submitting.");
+    } catch (error) {
+      setBulkOilRows([]);
+      setBulkOilResults([]);
+      setMessage(error instanceof Error ? error.message : "Could not preview OIL CSV.");
+    }
+  }
+
+  async function submitBulkOil() {
+    if (!bulkOilRows.length || bulkOilIssues.some(issues => issues.length > 0)) {
+      setMessage("Resolve all validation errors before submitting the OIL batch.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    const reports: string[] = [];
+    for (let index = 0; index < bulkOilRows.length; index++) {
+      const row = bulkOilRows[index];
+      const member = members.find(value => value.email.trim().toLowerCase() === row.email.trim().toLowerCase());
+      if (!member) {
+        reports.push(`Row ${row.line}: FAILED ${row.email} — member not found`);
+        setBulkOilResults([...reports]);
+        continue;
+      }
+      try {
+        const { data, errors } = await client.mutations.awardOil({
+          memberId: member.id,
+          amount: Number(row.amount),
+          expiryDate: row.expiryDate,
+          requestId: row.requestId,
+        });
+        if (errors?.length || !data) throw new Error(errors?.[0]?.message ?? "Award failed.");
+        reports.push(`Row ${row.line}: SUCCESS — ${member.name} (${row.email}), ${row.amount} OIL, expires ${row.expiryDate}`);
+        const refreshed = await client.models.Member.get({ id: member.id });
+        if (refreshed.data) {
+          setMembers(current => current.map(value => value.id === member.id ? refreshed.data as Member : value));
+          if (selectedId === member.id) {
+            setForm(current => ({
+              ...current,
+              oil: String(refreshed.data!.oil ?? 0),
+              total_leave_balance: String(refreshed.data!.totalLeaveBalance ?? 0),
+              total_duties: String(refreshed.data!.totalDuties ?? 0),
+            }));
+          }
+        }
+      } catch (error) {
+        reports.push(`Row ${row.line}: FAILED ${row.email} — ${error instanceof Error ? error.message : String(error)}`);
+      }
+      setBulkOilResults([...reports]);
+    }
+    setBusy(false);
+    const failed = reports.filter(report => report.includes(": FAILED")).length;
+    setMessage(failed
+      ? `Bulk OIL batch finished: ${reports.length - failed} succeeded, ${failed} failed. You can retry the same preview safely; request IDs prevent duplicate awards.`
+      : `Bulk OIL batch finished: ${reports.length} awards processed. Re-running this same preview will not add the awards twice.`);
   }
 
   async function awardOil() {
@@ -328,6 +441,41 @@ function SettingsContent() {
       <section className="settings-card">
         <div className="settings-card-heading">
           <span className="settings-card-icon" aria-hidden="true">04</span>
+          <div><h3>Bulk OIL awarding</h3><p>Upload multiple OIL awards at once, with a separate expiry date for every row.</p></div>
+        </div>
+        <p className="settings-helper">Required CSV headers (in order): <code>email,amount,expiry_date</code></p>
+        <p><small>Use the member's existing email address. Amounts can be fractional (for example 1.5). Dates must be today or later in Singapore time. Maximum 100 rows per batch.</small></p>
+        <textarea aria-label="Bulk OIL award CSV" rows={7} value={bulkOilCsv} onChange={event => setBulkOilCsv(event.target.value)} placeholder={"email,amount,expiry_date\nmember@example.com,1.5,2026-12-31"} />
+        <div className="settings-actions">
+          <button className="ghost" type="button" disabled={busy} onClick={previewBulkOilCsv}>Preview and validate CSV</button>
+          <button className="ghost" type="button" disabled={busy} onClick={() => {
+            setBulkOilRows([]); setBulkOilResults([]); setBulkOilCsv("");
+            setMessage("Bulk OIL batch cleared. Previewing a new batch creates new award request IDs.");
+          }}>Clear / start new batch</button>
+        </div>
+        {!!bulkOilRows.length && <>
+          <p>{bulkOilRows.length} rows ready for review.</p>
+          <div className="settings-table-wrap">
+            <table><thead><tr><th>Row</th><th>Email</th><th>Amount</th><th>Expiry date</th><th>Validation</th></tr></thead>
+              <tbody>{bulkOilRows.map((row, index) => <tr key={row.requestId}>
+                <td>{row.line}</td><td>{row.email}</td><td>{row.amount}</td><td>{row.expiryDate}</td>
+                <td>{bulkOilIssues[index].length ? bulkOilIssues[index].join("; ") : "Valid"}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <div className="settings-actions">
+            <button type="button" disabled={busy || bulkOilIssues.some(issues => issues.length > 0)} onClick={submitBulkOil}>Submit OIL awards</button>
+          </div>
+        </>}
+        {!!bulkOilResults.length && <div className="settings-table-wrap">
+          <table><thead><tr><th>Result</th></tr></thead><tbody>
+            {bulkOilResults.map((result, index) => <tr key={index}><td>{result}</td></tr>)}
+          </tbody></table>
+        </div>}
+      </section>
+      <section className="settings-card">
+        <div className="settings-card-heading">
+          <span className="settings-card-icon" aria-hidden="true">05</span>
           <div><h3>Award new OIL</h3><p>Record a separate OIL award and its expiry date for a member.</p></div>
         </div>
         <div className="settings-form-grid">
@@ -346,7 +494,7 @@ function SettingsContent() {
               onChange={e => setAwardExpiry(e.target.value)} />
           </label>
         </div>
-        <p><small>Each award is stored individually. The existing Member OIL total is not modified until the balance-ledger integration is completed.</small></p>
+        <p><small>Each award is stored individually and immediately updates the member’s existing OIL and total leave balances.</small></p>
         <div className="settings-actions">
           <button type="button" disabled={busy} onClick={awardOil}>Submit OIL award</button>
         </div>
