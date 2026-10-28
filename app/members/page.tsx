@@ -17,7 +17,7 @@ function MyInfo() {
   const { email, name, role, isApprover, isDriver, appointment } = useApp();
   const { row, error } = useMyMember();
   const [phone, setPhone] = useState("");
-  const [oilAwards, setOilAwards] = useState<{ id: string; amount: number; remaining: number; expiryDate: string }[]>([]);
+  const [oilAwards, setOilAwards] = useState<{ id: string; amount: number; remaining: number; expiryDate: string; voidedAt?: string | null }[]>([]);
   const [oilLoading, setOilLoading] = useState(false);
   const [oilError, setOilError] = useState("");
   const [today, setToday] = useState(() => singaporeDate());
@@ -38,7 +38,7 @@ function MyInfo() {
     setOilAwards([]);
     (async () => {
       try {
-        const awards: { id: string; amount: number; remaining: number; expiryDate: string }[] = [];
+        const awards: { id: string; amount: number; remaining: number; expiryDate: string; voidedAt?: string | null }[] = [];
         let nextToken: string | null | undefined;
         do {
           const page = await client.models.OilCredit.listOilCreditByMemberId(
@@ -48,6 +48,7 @@ function MyInfo() {
           awards.push(...page.data.map(credit => ({
             id: credit.id, amount: credit.amount,
             remaining: credit.remaining, expiryDate: credit.expiryDate,
+            voidedAt: credit.voidedAt,
           })));
           nextToken = page.nextToken;
         } while (nextToken);
@@ -129,12 +130,13 @@ function MyInfo() {
                   <thead><tr><th scope="col">OIL awarded</th><th scope="col">Remaining</th><th scope="col">Expiry date</th><th scope="col">Status</th></tr></thead>
                   <tbody>
                     {oilAwards.map(credit => {
+                      const voided = Boolean(credit.voidedAt);
                       const expired = credit.expiryDate < today;
-                      const status = expired ? "Expired" : credit.remaining <= 0 ? "Fully used" : "Available";
+                      const status = voided ? "Voided" : expired ? "Expired" : credit.remaining <= 0 ? "Fully used" : "Available";
                       return (
                         <tr key={credit.id}>
                           <td>{show(credit.amount)}</td>
-                          <td>{show(expired ? 0 : credit.remaining)}</td>
+                          <td>{show(voided || expired ? 0 : credit.remaining)}</td>
                           <td>{credit.expiryDate}</td>
                           <td>{status}</td>
                         </tr>
