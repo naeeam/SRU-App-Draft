@@ -8,7 +8,7 @@ backend:
         - node --version
         - npm --version
         - echo "=== STARTING NPM CI ==="
-        - npm ci --no-audit --no-fund --loglevel verbose
+        - npm install --no-audit --no-fund --loglevel verbose
         - echo "=== NPM CI COMPLETED ==="
         - npx ampx --version
         - echo "=== STARTING AMPLIFY BACKEND DEPLOY ==="
