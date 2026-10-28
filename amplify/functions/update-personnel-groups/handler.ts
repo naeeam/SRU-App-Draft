@@ -19,7 +19,7 @@ export const handler: Schema["updatePersonnelGroups"]["functionHandler"] = async
   if (!event.identity || !("claims" in event.identity)) throw new Error("Authentication required.");
   const raw = event.identity.claims["cognito:groups"];
   assertKahGroups(Array.isArray(raw) ? raw.map(String) : typeof raw === "string" ? raw.split(",").map(v => v.trim()) : []);
-  const { memberId, rank, driver, appointment } = event.arguments;
+  const { memberId, rank, driver, appointment, oic } = event.arguments;
   if (!RANKS.includes(rank) || !["", ...APPOINTMENTS].includes(appointment)) {
     throw new Error("Invalid rank or appointment.");
   }
@@ -42,6 +42,7 @@ export const handler: Schema["updatePersonnelGroups"]["functionHandler"] = async
   const desired = new Set([
     rank, ...(driver ? ["DRIVER"] : []),
     ...(appointment ? [`APPT_${appointment}`] : []),
+    ...(oic ? ["OIC"] : []),
   ]);
   const remove = [...original].filter(g => MANAGED.has(g) && !desired.has(g));
   const add = [...desired].filter(g => !original.has(g));
@@ -83,5 +84,7 @@ export const handler: Schema["updatePersonnelGroups"]["functionHandler"] = async
     if (rollbackFailed) throw new Error("Personnel update failed and group rollback was incomplete. Contact an administrator.");
     throw new Error("Personnel update failed; Cognito changes were rolled back.");
   }
-  return { message: "Cognito groups and Member role updated." };
+  return { message: oic
+    ? "Cognito groups and Member role updated; OIC group access added."
+    : "Cognito groups and Member role updated." };
 };
