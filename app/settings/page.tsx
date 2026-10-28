@@ -61,7 +61,7 @@ function validate(row: Form): string[] {
 }
 
 function SettingsContent() {
-  const { isApprover, email } = useApp();
+  const { isApprover } = useApp();
   const [strength, setStrength] = useState("34");
   const [strengthExists, setStrengthExists] = useState(false);
   const [form, setForm] = useState<Form>({ ...empty });
@@ -189,18 +189,28 @@ function SettingsContent() {
     }
     setBusy(true); setMessage("");
     try {
-      const { errors } = await client.models.OilCredit.create({
+      const { data, errors } = await client.mutations.awardOil({
         memberId: awardMemberId,
         amount,
-        remaining: amount,
         expiryDate: awardExpiry,
-        awardedAt: new Date().toISOString(),
-        awardedBy: email,
+        requestId: crypto.randomUUID(),
       });
-      if (errors?.length) throw new Error(errors[0].message);
+      if (errors?.length || !data) throw new Error(errors?.[0]?.message ?? "Could not record OIL award.");
+      const refreshed = await client.models.Member.get({ id: awardMemberId });
+      if (refreshed.data) {
+        setMembers(current => current.map(member => member.id === awardMemberId ? refreshed.data as Member : member));
+        if (selectedId === awardMemberId) {
+          setForm(current => ({
+            ...current,
+            oil: String(refreshed.data!.oil ?? 0),
+            total_leave_balance: String(refreshed.data!.totalLeaveBalance ?? 0),
+            total_duties: String(refreshed.data!.totalDuties ?? 0),
+          }));
+        }
+      }
       setAwardAmount("");
       setAwardExpiry("");
-      setMessage("OIL award recorded. The member can view its expiry date in My Info.");
+      setMessage("OIL award recorded. The individual award and existing leave balance have both been updated.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not record OIL award.");
     } finally {
