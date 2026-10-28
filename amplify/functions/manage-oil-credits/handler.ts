@@ -92,6 +92,7 @@ export const handler: Schema["manageOilCredits"]["functionHandler"] = async even
   // prove no OIL-deducting leave was submitted after the award was issued.
   const allocations = await scanAll(OIL_ALLOCATION_TABLE);
   const leaves = await scanAll(LEAVE_TABLE);
+  const allCredits = await scanAll(OIL_CREDIT_TABLE);
   const memberCache = new Map<string, Record<string, any>>();
   for (const credit of credits) {
     if (allocations.some(allocation => allocation.creditId === credit.id && Number(allocation.amount ?? 0) > 0)) {
@@ -102,6 +103,12 @@ export const handler: Schema["manageOilCredits"]["functionHandler"] = async even
     }))).Item;
     if (!member) throw new Error("An award's personnel record no longer exists.");
     memberCache.set(String(credit.memberId), member);
+    const ledgerRemaining = allCredits
+      .filter(row => String(row.memberId) === String(credit.memberId) && !row.voidedAt)
+      .reduce((sum, row) => sum + Number(row.remaining ?? 0), 0);
+    if (Number(member.oil ?? 0) + 0.000001 < ledgerRemaining) {
+      throw new Error(`Cannot safely void OIL for ${member.name ?? member.id}: the recorded award ledger exceeds the current OIL balance. Reconcile the ledger first.`);
+    }
     if (Math.abs(Number(credit.remaining) - Number(credit.amount)) > 0.000001) {
       throw new Error(`Cannot safely void award ${credit.id}: its remaining amount differs from the original amount.`);
     }
