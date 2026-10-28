@@ -5,6 +5,7 @@ import { cancelLeave } from "../functions/cancel-leave/resource";
 import { reviewLeave } from "../functions/review-leave/resource";
 import { attachScreenshot } from "../functions/attach-screenshot/resource";
 import { updatePersonnelGroups } from "../functions/update-personnel-groups/resource";
+import { awardOil } from "../functions/award-oil/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -110,6 +111,20 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       // Personnel changes are KAH-only. Do not grant owners blanket update access.
     ]),
+  awardOil: a
+    .mutation()
+    .arguments({
+      memberId: a.id().required(),
+      amount: a.float().required(),
+      expiryDate: a.date().required(),
+      requestId: a.id().required(),
+    })
+    .returns(a.ref("AwardOilResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(awardOil)),
+
+  AwardOilResult: a.customType({ message: a.string().required() }),
+
   updatePersonnelGroups: a
     .mutation()
     .arguments({
