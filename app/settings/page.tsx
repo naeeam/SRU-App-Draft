@@ -28,6 +28,10 @@ type BulkOilRow = {
   line: number;
 };
 
+function displayDate(value: string): string {
+  return /^\\d{4}-\\d{2}-\\d{2}$/.test(value) ? value.split("-").reverse().join("/") : value;
+}
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [], field = "", quoted = false;
@@ -540,7 +544,7 @@ function SettingsContent() {
               setManageExpiryFilter(event.target.value); setManageSelectedIds([]);
             }}>
               <option value="">All active expiry dates</option>
-              {expiryDates.map(date => <option key={date} value={date}>{date}</option>)}
+              {expiryDates.map(date => <option key={date} value={date}>{displayDate(date)}</option>)}
             </select>
           </label>
           <label>New expiry date
@@ -567,7 +571,7 @@ function SettingsContent() {
                     : current.filter(id => id !== credit.id))} /></td>
                 <td>{member ? `${member.rank ?? ""} ${member.name}`.trim() : "Unknown member"}</td>
                 <td>{Number(credit.amount ?? 0)}</td><td>{Number(credit.remaining ?? 0)}</td>
-                <td>{credit.expiryDate}</td><td>{credit.awardedAt?.slice(0, 10) ?? "—"}</td>
+                <td>{displayDate(credit.expiryDate)}</td><td>{credit.awardedAt ? displayDate(credit.awardedAt.slice(0, 10)) : "—"}</td>
               </tr>;
             })}{!filteredOilCredits.length && <tr><td colSpan={6}>No active awards match this expiry date.</td></tr>}</tbody>
           </table>
