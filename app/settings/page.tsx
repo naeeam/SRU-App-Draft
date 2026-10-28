@@ -18,6 +18,8 @@ const empty: Form = {
 const RANKS = ["LTA", "WO2", "SGT1", "SGT2", "CPL", "LCP"];
 const APPOINTMENTS = ["", "FF", "SC", "RC", "DRC"];
 
+type OilCreditRow = { id: string; memberId: string; amount?: number | null; remaining?: number | null; expiryDate: string; awardedAt?: string | null; voidedAt?: string | null };
+
 type BulkOilRow = {
   email: string;
   amount: string;
@@ -81,6 +83,10 @@ function SettingsContent() {
   const [bulkOilCsv, setBulkOilCsv] = useState("");
   const [bulkOilRows, setBulkOilRows] = useState<BulkOilRow[]>([]);
   const [bulkOilResults, setBulkOilResults] = useState<string[]>([]);
+  const [oilCredits, setOilCredits] = useState<OilCreditRow[]>([]);
+  const [manageExpiryFilter, setManageExpiryFilter] = useState("");
+  const [manageSelectedIds, setManageSelectedIds] = useState<string[]>([]);
+  const [manageNewExpiry, setManageNewExpiry] = useState("");
   const [csv, setCsv] = useState("");
   const [rows, setRows] = useState<Form[]>([]);
   const [results, setResults] = useState<string[]>([]);
@@ -97,9 +103,56 @@ function SettingsContent() {
       if (errors?.length) setMessage(errors[0].message);
       else setMembers([...data]);
     }).catch(() => setMessage("Could not load members."));
+    refreshOilCredits().catch(() => setMessage("Could not load OIL award records."));
   }, [isApprover]);
 
   const selected = members.find(m => m.id === selectedId);
+  const activeOilCredits = oilCredits.filter(credit => !credit.voidedAt && Number(credit.remaining ?? 0) > 0 && credit.expiryDate >= singaporeDate());
+  const expiryDates = [...new Set(activeOilCredits.map(credit => credit.expiryDate))].sort();
+  const filteredOilCredits = activeOilCredits.filter(credit => !manageExpiryFilter || credit.expiryDate === manageExpiryFilter);
+  const selectedOilTotal = filteredOilCredits.filter(credit => manageSelectedIds.includes(credit.id)).reduce((sum, credit) => sum + Number(credit.remaining ?? 0), 0);
+
+  async function refreshOilCredits() {
+    const { data, errors } = await client.models.OilCredit.list({ limit: 1000 });
+    if (errors?.length) throw new Error(errors[0].message);
+    setOilCredits(data.map(credit => ({
+      id: credit.id, memberId: credit.memberId, amount: credit.amount,
+      remaining: credit.remaining, expiryDate: credit.expiryDate,
+      awardedAt: credit.awardedAt, voidedAt: credit.voidedAt,
+    })) as OilCreditRow[]);
+  }
+
+  async function manageOil(action: "CHANGE_EXPIRY" | "VOID") {
+    if (!manageSelectedIds.length) { setMessage("Select at least one active OIL award."); return; }
+    if (action === "CHANGE_EXPIRY" && (!isValidDate(manageNewExpiry) || manageNewExpiry < singaporeDate())) {
+      setMessage("Choose a valid new expiry date that has not passed."); return;
+    }
+    if (action === "VOID" && !window.confirm(
+      `Void ${manageSelectedIds.length} selected OIL award(s)? Unused OIL will be removed from personnel balances. This cannot be undone.`
+    )) return;
+    setBusy(true); setMessage("");
+    try {
+      const { data, errors } = await client.mutations.manageOilCredits({
+        action, creditIds: manageSelectedIds,
+        expiryDate: action === "CHANGE_EXPIRY" ? manageNewExpiry : undefined,
+      });
+      if (errors?.length || !data) throw new Error(errors?.[0]?.message ?? "OIL management operation failed.");
+      await Promise.all([
+        refreshOilCredits(),
+        client.models.Member.list({ limit: 1000 }).then(({ data: memberData, errors: memberErrors }) => {
+          if (memberErrors?.length) throw new Error(memberErrors[0].message);
+          setMembers([...memberData]);
+        }),
+      ]);
+      setManageSelectedIds([]);
+      setMessage(data.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const duplicates = useMemo(() => {
     const known = new Set(members.map(m => m.email.toLowerCase()));
     const seen = new Set<string>();
@@ -473,9 +526,55 @@ function SettingsContent() {
           </tbody></table>
         </div>}
       </section>
+
       <section className="settings-card">
         <div className="settings-card-heading">
           <span className="settings-card-icon" aria-hidden="true">05</span>
+          <div><h3>Bulk OIL management</h3><p>Find active awards by expiry date, then change their expiry or void unused awards for multiple personnel.</p></div>
+        </div>
+        <div className="settings-form-grid">
+          <label>Filter by current expiry date
+            <select value={manageExpiryFilter} onChange={event => {
+              setManageExpiryFilter(event.target.value); setManageSelectedIds([]);
+            }}>
+              <option value="">All active expiry dates</option>
+              {expiryDates.map(date => <option key={date} value={date}>{date}</option>)}
+            </select>
+          </label>
+          <label>New expiry date
+            <input type="date" min={singaporeDate()} value={manageNewExpiry} onChange={event => setManageNewExpiry(event.target.value)} />
+          </label>
+        </div>
+        <p><small>Only active, unexpired awards with a remaining balance are shown. Selected remaining OIL: {Math.round(selectedOilTotal * 100) / 100}. Select up to 40 awards per operation.</small></p>
+        <div className="settings-actions">
+          <button className="ghost" type="button" disabled={busy || !filteredOilCredits.length} onClick={() => setManageSelectedIds(filteredOilCredits.slice(0, 40).map(credit => credit.id))}>Select first 40 shown</button>
+          <button className="ghost" type="button" disabled={busy} onClick={() => setManageSelectedIds([])}>Clear selection</button>
+          <button type="button" disabled={busy || !manageSelectedIds.length || !manageNewExpiry} onClick={() => manageOil("CHANGE_EXPIRY")}>Change expiry for selected</button>
+          <button type="button" disabled={busy || !manageSelectedIds.length} onClick={() => manageOil("VOID")}>Void selected awards</button>
+          <button className="ghost" type="button" disabled={busy} onClick={() => refreshOilCredits().then(() => setMessage("OIL award list refreshed.")).catch(error => setMessage(String(error)))}>Refresh awards</button>
+        </div>
+        <div className="settings-table-wrap">
+          <table><thead><tr><th>Select</th><th>Personnel</th><th>Awarded</th><th>Remaining</th><th>Expiry date</th><th>Award date</th></tr></thead>
+            <tbody>{filteredOilCredits.map(credit => {
+              const member = members.find(value => value.id === credit.memberId);
+              return <tr key={credit.id}>
+                <td><input aria-label={"Select OIL award for " + (member?.name ?? credit.memberId)} type="checkbox"
+                  checked={manageSelectedIds.includes(credit.id)}
+                  onChange={event => setManageSelectedIds(current => event.target.checked
+                    ? (current.length < 40 ? [...current, credit.id] : current)
+                    : current.filter(id => id !== credit.id))} /></td>
+                <td>{member ? `${member.rank ?? ""} ${member.name}`.trim() : "Unknown member"}</td>
+                <td>{Number(credit.amount ?? 0)}</td><td>{Number(credit.remaining ?? 0)}</td>
+                <td>{credit.expiryDate}</td><td>{credit.awardedAt?.slice(0, 10) ?? "—"}</td>
+              </tr>;
+            })}{!filteredOilCredits.length && <tr><td colSpan={6}>No active awards match this expiry date.</td></tr>}</tbody>
+          </table>
+        </div>
+        <p><small>Safety note: the current leave flow does not record which individual award funded each OIL deduction. To prevent accidental balance loss, voiding is blocked when a member has an OIL-deducting leave application after that award, or when the award's remaining amount differs from its original amount. Changing expiry remains available.</small></p>
+      </section>
+      <section className="settings-card">
+        <div className="settings-card-heading">
+          <span className="settings-card-icon" aria-hidden="true">06</span>
           <div><h3>Award new OIL</h3><p>Record a separate OIL award and its expiry date for a member.</p></div>
         </div>
         <div className="settings-form-grid">
@@ -500,7 +599,7 @@ function SettingsContent() {
         </div>
       </section>
       <section className="settings-card">
-        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">05</span><div><h3>Edit personnel record</h3><p>Update personnel details and manage Cognito account roles.</p></div></div>
+        <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">07</span><div><h3>Edit personnel record</h3><p>Update personnel details and manage Cognito account roles.</p></div></div>
         <label className="settings-member-picker">Select personnel<select value={selectedId} onChange={e => {
           const m = members.find(x => x.id === e.target.value);
           setSelectedId(e.target.value);
