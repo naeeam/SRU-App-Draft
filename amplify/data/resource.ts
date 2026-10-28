@@ -6,6 +6,7 @@ import { reviewLeave } from "../functions/review-leave/resource";
 import { attachScreenshot } from "../functions/attach-screenshot/resource";
 import { updatePersonnelGroups } from "../functions/update-personnel-groups/resource";
 import { awardOil } from "../functions/award-oil/resource";
+import { manageOilCredits } from "../functions/manage-oil-credits/resource";
 
 const approvers = ["LTA", "WO2"];
 
@@ -62,6 +63,7 @@ const schema = a.schema({
       expiryDate: a.date().required(),
       awardedAt: a.datetime().required(),
       awardedBy: a.string().required(),
+      voidedAt: a.datetime(),
     })
     .secondaryIndexes((index) => [index("memberId")])
     .authorization((allow) => [
@@ -124,6 +126,19 @@ const schema = a.schema({
     .handler(a.handler.function(awardOil)),
 
   AwardOilResult: a.customType({ message: a.string().required() }),
+
+  manageOilCredits: a
+    .mutation()
+    .arguments({
+      action: a.string().required(),
+      creditIds: a.string().array().required(),
+      expiryDate: a.date(),
+    })
+    .returns(a.ref("ManageOilCreditsResult"))
+    .authorization((allow) => [allow.groups(approvers)])
+    .handler(a.handler.function(manageOilCredits)),
+
+  ManageOilCreditsResult: a.customType({ message: a.string().required() }),
 
   updatePersonnelGroups: a
     .mutation()
