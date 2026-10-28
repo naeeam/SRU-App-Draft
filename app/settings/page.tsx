@@ -117,7 +117,7 @@ function SettingsContent() {
     return bulkOilRows.map(row => {
       const issues: string[] = [];
       const email = row.email.trim().toLowerCase();
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) issues.push("Invalid email");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) issues.push("Invalid email");
       if (!members.some(member => member.email.trim().toLowerCase() === email)) issues.push("No existing member matches this email");
       const amount = Number(row.amount);
       if (!row.amount.trim() || !Number.isFinite(amount) || amount <= 0 ||
@@ -206,7 +206,7 @@ function SettingsContent() {
 
   function previewBulkOilCsv() {
     try {
-      const parsed = parseCsv(bulkOilCsv.replace(/^\\uFEFF/, ""));
+      const parsed = parseCsv(bulkOilCsv.replace(/^\uFEFF/, ""));
       const header = parsed.shift()?.map(value => value.trim().toLowerCase()) ?? [];
       const expected = ["email", "amount", "expiry_date"];
       if (header.length !== expected.length || expected.some((value, index) => header[index] !== value)) {
