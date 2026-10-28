@@ -13,6 +13,7 @@ import { reviewLeave } from "./functions/review-leave/resource";
 import { attachScreenshot } from "./functions/attach-screenshot/resource";
 import { updatePersonnelGroups } from "./functions/update-personnel-groups/resource";
 import { awardOil } from "./functions/award-oil/resource";
+import { manageOilCredits } from "./functions/manage-oil-credits/resource";
 
 const backend = defineBackend({
   auth,
@@ -25,6 +26,7 @@ const backend = defineBackend({
   attachScreenshot,
   updatePersonnelGroups,
   awardOil,
+  manageOilCredits,
 });
 
 // DynamoDB tables
@@ -165,4 +167,22 @@ awardOilFn.addToRolePolicy(new PolicyStatement({
 awardOilCfn.addPropertyOverride("Environment.Variables", {
   MEMBER_TABLE_NAME: memberTable.tableName,
   OIL_CREDIT_TABLE_NAME: oilCreditTable.tableName,
+});
+
+
+// Secure bulk OIL management: update active expiry dates or void safe, unused awards.
+const manageOilFn = backend.manageOilCredits.resources.lambda;
+const manageOilCfn = backend.manageOilCredits.resources.cfnResources.cfnFunction;
+const oilAllocationTable = backend.data.resources.tables["OilAllocation"];
+manageOilFn.addToRolePolicy(new PolicyStatement({
+  actions: ["dynamodb:GetItem", "dynamodb:Scan", "dynamodb:UpdateItem", "dynamodb:TransactWriteItems"],
+  resources: [
+    memberTable.tableArn, oilCreditTable.tableArn, oilAllocationTable.tableArn, leaveTable.tableArn,
+  ],
+}));
+manageOilCfn.addPropertyOverride("Environment.Variables", {
+  MEMBER_TABLE_NAME: memberTable.tableName,
+  OIL_CREDIT_TABLE_NAME: oilCreditTable.tableName,
+  OIL_ALLOCATION_TABLE_NAME: oilAllocationTable.tableName,
+  LEAVE_TABLE_NAME: leaveTable.tableName,
 });
