@@ -38,6 +38,20 @@ export const handler: Schema["awardOil"]["functionHandler"] = async event => {
     throw new Error("Expiry date must be today or a future date in Singapore.");
   }
 
+  // Idempotency: a retry with the same request ID must never award the credit twice.
+  const existingCredit = await db.send(new GetCommand({
+    TableName: OIL_CREDIT_TABLE, Key: { id: requestId }, ConsistentRead: true,
+  }));
+  if (existingCredit.Item) {
+    const existing = existingCredit.Item;
+    if (existing.memberId !== memberId ||
+        Math.abs(Number(existing.amount) - value) > 0.000001 ||
+        existing.expiryDate !== expiryDate) {
+      throw new Error("This request ID has already been used for a different OIL award.");
+    }
+    return { message: "OIL award was already recorded; no duplicate balance change was made." };
+  }
+
   const result = await db.send(new GetCommand({
     TableName: MEMBER_TABLE, Key: { id: memberId }, ConsistentRead: true,
   }));
@@ -76,23 +90,39 @@ export const handler: Schema["awardOil"]["functionHandler"] = async event => {
     conditions.push("attribute_not_exists(updatedAt)");
   }
 
-  await db.send(new TransactWriteCommand({
-    TransactItems: [
-      {
-        Put: {
-          TableName: OIL_CREDIT_TABLE, Item: credit,
-          ConditionExpression: "attribute_not_exists(id)",
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Put: {
+            TableName: OIL_CREDIT_TABLE, Item: credit,
+            ConditionExpression: "attribute_not_exists(id)",
+          },
         },
-      },
-      {
-        Update: {
-          TableName: MEMBER_TABLE, Key: { id: memberId },
-          UpdateExpression: "SET oil = :oil, totalLeaveBalance = :total, totalDuties = :duties, updatedAt = :now",
-          ConditionExpression: conditions.join(" AND "),
-          ExpressionAttributeValues: values,
+        {
+          Update: {
+            TableName: MEMBER_TABLE, Key: { id: memberId },
+            UpdateExpression: "SET oil = :oil, totalLeaveBalance = :total, totalDuties = :duties, updatedAt = :now",
+            ConditionExpression: conditions.join(" AND "),
+            ExpressionAttributeValues: values,
+          },
         },
-      },
-    ],
-  }));
+      ],
+    }));
+  } catch (error) {
+    // Two concurrent retries can both initially see no credit. If the other
+    // request committed first, treat this request as successful only when the
+    // stored credit exactly matches the same idempotency key and award details.
+    const retry = await db.send(new GetCommand({
+      TableName: OIL_CREDIT_TABLE, Key: { id: requestId }, ConsistentRead: true,
+    }));
+    const stored = retry.Item;
+    if (stored && stored.memberId === memberId &&
+        Math.abs(Number(stored.amount) - value) <= 0.000001 &&
+        stored.expiryDate === expiryDate) {
+      return { message: "OIL award was already recorded; no duplicate balance change was made." };
+    }
+    throw error;
+  }
   return { message: "OIL award recorded and member leave balance updated." };
 };
