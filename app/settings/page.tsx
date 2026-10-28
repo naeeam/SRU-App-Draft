@@ -113,7 +113,10 @@ function SettingsContent() {
 
   const selected = members.find(m => m.id === selectedId);
   const activeOilCredits = oilCredits.filter(credit => !credit.voidedAt && Number(credit.remaining ?? 0) > 0 && credit.expiryDate >= singaporeDate());
-  const expiryDates = [...new Set(activeOilCredits.map(credit => credit.expiryDate))].sort();
+  // const expiryDates = [...new Set(activeOilCredits.map(credit => credit.expiryDate))].sort();
+  const expiryDates = Array.from(
+    new Set(activeOilCredits.map(credit => credit.expiryDate))
+  ).sort();
   const filteredOilCredits = activeOilCredits.filter(credit => !manageExpiryFilter || credit.expiryDate === manageExpiryFilter);
   const selectedOilTotal = filteredOilCredits.filter(credit => manageSelectedIds.includes(credit.id)).reduce((sum, credit) => sum + Number(credit.remaining ?? 0), 0);
 
@@ -179,7 +182,7 @@ function SettingsContent() {
       if (!members.some(member => member.email.trim().toLowerCase() === email)) issues.push("No existing member matches this email");
       const amount = Number(row.amount);
       if (!row.amount.trim() || !Number.isFinite(amount) || amount <= 0 ||
-          Math.round(amount * 100) !== amount * 100) issues.push("Amount must be positive, max 2 decimals");
+        Math.round(amount * 100) !== amount * 100) issues.push("Amount must be positive, max 2 decimals");
       if (!isValidDate(row.expiryDate) || row.expiryDate < singaporeDate()) issues.push("Invalid or expired date");
       const key = [email, row.amount.trim(), row.expiryDate].join("|");
       if (seen.has(key)) issues.push("Duplicate award row");
@@ -353,7 +356,7 @@ function SettingsContent() {
       setMessage("Select a personnel member to receive OIL."); return;
     }
     if (!awardAmount.trim() || !Number.isFinite(amount) || amount <= 0 ||
-        Math.round(amount * 100) !== amount * 100) {
+      Math.round(amount * 100) !== amount * 100) {
       setMessage("Enter a positive OIL amount (up to two decimal places)."); return;
     }
     if (!isValidDate(awardExpiry) || awardExpiry < singaporeDate()) {
@@ -440,14 +443,14 @@ function SettingsContent() {
         <div className="settings-strength-controls"><label>Personnel count
           <input type="number" min="1" max="10000" value={strength} onChange={e => setStrength(e.target.value)} />
         </label>
-        <button type="button" disabled={busy} onClick={saveStrength}>Save strength</button></div>
+          <button type="button" disabled={busy} onClick={saveStrength}>Save strength</button></div>
       </section>
       <section className="settings-card">
         <div className="settings-card-heading"><span className="settings-card-icon" aria-hidden="true">02</span><div><h3>Create personnel account</h3><p>Register a member and generate their initial sign-in credentials.</p></div></div>
         <p><small>New accounts receive a temporary password and must change it at first sign-in. Cognito invitations are suppressed.</small></p>
         <div className="settings-form-grid">
           {FIELDS.map(field => (
-            <label key={field} className={["name","email"].includes(field) ? "settings-field-wide" : ""}>
+            <label key={field} className={["name", "email"].includes(field) ? "settings-field-wide" : ""}>
               {field.replaceAll("_", " ")}
               {field === "rank" ? (
                 <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>
@@ -462,7 +465,7 @@ function SettingsContent() {
                   <option value="no">No</option><option value="yes">Yes</option>
                 </select>
               ) : (
-                <input type={field === "email" ? "email" : ["al","oil","phol","total_leave_balance","total_duties","mc_count"].includes(field) ? "number" : "text"}
+                <input type={field === "email" ? "email" : ["al", "oil", "phol", "total_leave_balance", "total_duties", "mc_count"].includes(field) ? "number" : "text"}
                   step="any" value={form[field]} onChange={e => setForm(v => ({ ...v, [field]: e.target.value }))} />
               )}
             </label>
@@ -634,9 +637,9 @@ function SettingsContent() {
           ))}
           </div><div className="settings-actions"><button type="button" disabled={busy} onClick={updateMember}>Save member details</button></div>
           <h4>Account roles</h4><div className="settings-form-grid">
-          <label>Rank <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>{RANKS.map(r => <option key={r}>{r}</option>)}</select></label>
-          <label>Driver <select value={form.driver} onChange={e => setForm(v => ({ ...v, driver: e.target.value }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
-          <label>Appointment <select value={form.appointment} onChange={e => setForm(v => ({ ...v, appointment: e.target.value }))}>{APPOINTMENTS.map(a => <option key={a} value={a}>{a || "None"}</option>)}</select></label>
+            <label>Rank <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>{RANKS.map(r => <option key={r}>{r}</option>)}</select></label>
+            <label>Driver <select value={form.driver} onChange={e => setForm(v => ({ ...v, driver: e.target.value }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
+            <label>Appointment <select value={form.appointment} onChange={e => setForm(v => ({ ...v, appointment: e.target.value }))}>{APPOINTMENTS.map(a => <option key={a} value={a}>{a || "None"}</option>)}</select></label>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
             <input type="checkbox" checked={addToOic} onChange={e => setAddToOic(e.target.checked)} />
