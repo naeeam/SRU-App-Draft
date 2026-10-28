@@ -81,6 +81,7 @@ function SettingsContent() {
   const [form, setForm] = useState<Form>({ ...empty });
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [addToOic, setAddToOic] = useState(false);
   const [awardMemberId, setAwardMemberId] = useState("");
   const [awardAmount, setAwardAmount] = useState("");
   const [awardExpiry, setAwardExpiry] = useState("");
@@ -399,9 +400,13 @@ function SettingsContent() {
         rank: form.rank,
         driver: form.driver === "yes",
         appointment: form.appointment,
+        oic: addToOic,
       });
       if (errors?.length || !data) throw new Error(errors?.[0]?.message ?? "Group update failed.");
-      setMessage("Personnel rank, driver and appointment groups updated.");
+      setMessage(addToOic
+        ? "Personnel rank, driver and appointment groups updated; OIC group access added."
+        : "Personnel rank, driver and appointment groups updated.");
+      setAddToOic(false);
     } catch (e) { setMessage(String(e)); }
     finally { setBusy(false); }
   }
@@ -632,7 +637,13 @@ function SettingsContent() {
           <label>Rank <select value={form.rank} onChange={e => setForm(v => ({ ...v, rank: e.target.value }))}>{RANKS.map(r => <option key={r}>{r}</option>)}</select></label>
           <label>Driver <select value={form.driver} onChange={e => setForm(v => ({ ...v, driver: e.target.value }))}><option value="no">No</option><option value="yes">Yes</option></select></label>
           <label>Appointment <select value={form.appointment} onChange={e => setForm(v => ({ ...v, appointment: e.target.value }))}>{APPOINTMENTS.map(a => <option key={a} value={a}>{a || "None"}</option>)}</select></label>
-          </div><div className="settings-actions"><button type="button" disabled={busy} onClick={updateGroups}>Save Cognito roles</button></div>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+            <input type="checkbox" checked={addToOic} onChange={e => setAddToOic(e.target.checked)} />
+            Add this member to the OIC group
+          </label>
+          <p><small>Tick this to grant OIC access in addition to the member’s rank. Leaving it unticked will not remove existing OIC membership.</small></p>
+          <div className="settings-actions"><button type="button" disabled={busy} onClick={updateGroups}>Save Cognito roles</button></div>
         </div>}
       </section>
     </div>
