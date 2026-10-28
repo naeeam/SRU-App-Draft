@@ -29,7 +29,7 @@ type BulkOilRow = {
 };
 
 function displayDate(value: string): string {
-  return /^\\d{4}-\\d{2}-\\d{2}$/.test(value) ? value.split("-").reverse().join("/") : value;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split("-").reverse().join("/") : value;
 }
 
 function parseCsv(text: string): string[][] {
